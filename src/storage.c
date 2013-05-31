@@ -204,15 +204,12 @@ void storage_put(struct evhttp_request *request) {
     return;
   }
 
-  int disk_path_len = path_len + RS_STORAGE_ROOT_LEN;
-  char disk_path[disk_path_len + 1];
-  sprintf(disk_path, "%s%s", RS_STORAGE_ROOT, path);
-
   if(path[path_len - 1] == '/') {
     // no PUT on directories.
     evhttp_send_error(request, HTTP_BADREQUEST, NULL);
   } else {
     struct evbuffer *buf = evhttp_request_get_input_buffer(request);
+
     // create parent(s)
     char *path_copy = strdup(path);
     char *dir_path = dirname(path_copy);
@@ -245,9 +242,15 @@ void storage_put(struct evhttp_request *request) {
     }
     free(path_copy);
 
+    // dirname() possibly made previous copy unusable
+    path_copy = strdup(path);
+    char *file_name = basename(path_copy);
+
     // open (and possibly create) file
-    int fd = open(disk_path, O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
-                  RS_FILE_CREATE_MODE);
+    int fd = openat(dirfd, file_name,
+                    O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
+                    RS_FILE_CREATE_MODE);
+    free(path_copy);
     if(fd == -1) {
       perror("open() failed");
       evhttp_send_error(request, HTTP_INTERNAL, NULL);
