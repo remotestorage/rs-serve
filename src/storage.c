@@ -14,11 +14,23 @@
 
 #define EXTRACT_PATH(request) (evhttp_request_get_uri(request) + RS_STORAGE_PATH_LEN)
 
+void add_cors_headers(struct evkeyvalq *headers) {
+  evhttp_add_header(headers, "Access-Control-Allow-Origin", RS_ALLOW_ORIGIN);
+  evhttp_add_header(headers, "Access-Control-Allow-Headers", RS_ALLOW_HEADERS);
+  evhttp_add_header(headers, "Access-Control-Allow-Methods", RS_ALLOW_METHODS);
+}
+
 void storage_options(struct evhttp_request *request) {
+  struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
+  add_cors_headers(headers);
+
   evhttp_send_reply(request, HTTP_OK, NULL, NULL);
 }
 
 void storage_get(struct evhttp_request *request, int sendbody) {
+  struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
+  add_cors_headers(headers);
+
   if(! authorize_request(request)) {
     return;
   }
@@ -30,7 +42,6 @@ void storage_get(struct evhttp_request *request, int sendbody) {
   sprintf(disk_path, "%s%s", RS_STORAGE_ROOT, path);
   struct stat stat_buf;
   struct evbuffer *buf = evbuffer_new();
-  struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
 
   if(stat(disk_path, &stat_buf) != 0) {
     // stat failed
@@ -141,6 +152,8 @@ void storage_get(struct evhttp_request *request, int sendbody) {
 }
 
 void storage_put(struct evhttp_request *request) {
+  struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
+  add_cors_headers(headers);
   if(! authorize_request(request)) {
     return;
   }
@@ -148,6 +161,8 @@ void storage_put(struct evhttp_request *request) {
 }
 
 void storage_delete(struct evhttp_request *request) {
+  struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
+  add_cors_headers(headers);
   if(! authorize_request(request)) {
     return;
   }

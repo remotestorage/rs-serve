@@ -37,4 +37,9 @@
 // magic database file to use (NULL indicates system default)
 #define RS_MAGIC_DATABASE NULL
 
+// CORS header values
+#define RS_ALLOW_ORIGIN "*"
+#define RS_ALLOW_HEADERS "Authorization Content-Type Content-Length ETag"
+#define RS_ALLOW_METHODS "OPTIONS GET PUT DELETE"
+
 #endif
