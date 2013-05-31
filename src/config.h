@@ -21,4 +21,7 @@
 #define RS_AUTH_PATH "/auth"
 #define RS_AUTH_PATH_LEN 5
 
+#define RS_STORAGE_ROOT "/home/nil/src/rs-serve"
+#define RS_STORAGE_ROOT_LEN 22
+
 #endif
