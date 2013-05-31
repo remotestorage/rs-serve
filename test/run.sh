@@ -2,7 +2,7 @@
 
 mkdir -p tmp/
 
-./rs-serve --hostname test.host --port 8123 > tmp/test-server.log &
+./rs-serve --hostname test.host --port 8123 > tmp/test-server.log 2>&1 &
 sleep 2
 
 GET() {
@@ -10,12 +10,12 @@ GET() {
 }
 
 assert_response() {
-  echo -n $1 > tmp/expected-response
+  echo -n $2 > tmp/expected-response
   diff tmp/{test-response,expected-response} > /dev/null
   if [ "$?" == "0" ] ; then
-      echo OK
+      echo "  $1 - OK"
   else
-      echo FAIL
+      echo "  $1 - FAIL"
   fi
 }
 
