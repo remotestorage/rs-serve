@@ -20,7 +20,8 @@ extern int rs_port;
 
 // only used for webfinger result at the moment
 #define RS_SCHEME "http"
-#define RS_HOSTNAME "local.dev"
+extern char *rs_hostname;
+#define RS_HOSTNAME rs_hostname
 #define RS_STORAGE_API "draft-dejong-remotestorage-00"
 #define RS_AUTH_METHOD "http://tools.ietf.org/html/rfc6749#section-4.2"
 

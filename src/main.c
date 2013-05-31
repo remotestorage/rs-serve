@@ -30,9 +30,10 @@ void print_help(const char *progname) {
           "Usage: %s [options]\n"
           "\n"
           "Options:\n"
-          "  -h | --help               - Display this text and exit.\n"
-          "  -v | --version            - Print program version and exit.\n"
-          "  -p <port> | --port=<port> - Bind to given port (default: 80).\n"
+          "  -h | --help                   - Display this text and exit.\n"
+          "  -v | --version                - Print program version and exit.\n"
+          "  -p <port> | --port=<port>     - Bind to given port (default: 80).\n"
+          "  -n <name> | --hostname=<name> - Set hostname (defaults to local.dev)\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -46,9 +47,11 @@ void print_version() {
 }
 
 int rs_port = 80;
+char *rs_hostname = "local.dev";
 
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
+  { "hostname", required_argument, 0, 'n' },
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
   { 0, 0, 0, 0 }
@@ -59,7 +62,7 @@ int main(int argc, char **argv) {
   int opt;
   for(;;) {
     int opt_index = 0;
-    opt = getopt_long(argc, argv, "p:hv", long_options, &opt_index);
+    opt = getopt_long(argc, argv, "p:n:hv", long_options, &opt_index);
     if(opt == '?') {
       // invalid option
       exit(EXIT_FAILURE);
@@ -68,6 +71,8 @@ int main(int argc, char **argv) {
       break;
     } else if(opt == 'p') {
       rs_port = atoi(optarg);
+    } else if(opt == 'n') {
+      rs_hostname = optarg;
     } else if(opt == 'h') {
       print_help(argv[0]);
       return 0;
