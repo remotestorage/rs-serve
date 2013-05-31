@@ -23,7 +23,7 @@ static void handle_storage_request(struct evhttp_request *request) {
     storage_options(request);
     break;
   case EVHTTP_REQ_GET:
-    storage_get(request);
+    storage_get(request, 1);
     break;
   case EVHTTP_REQ_PUT:
     storage_put(request);
@@ -32,7 +32,7 @@ static void handle_storage_request(struct evhttp_request *request) {
     storage_delete(request);
     break;
   case EVHTTP_REQ_HEAD:
-    storage_head(request);
+    storage_get(request, 0);
     break;
   }
 }

@@ -19,9 +19,15 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <fcntl.h>
 
 // libevent headers
 #include <event2/event.h>
+#include <event2/buffer.h>
 #include <event2/http.h>
 
 // rs-serve headers
@@ -36,10 +42,9 @@ void log_request(struct evhttp_request *request);
 /* STORAGE */
 
 void storage_options(struct evhttp_request *request);
-void storage_get(struct evhttp_request *request);
+void storage_get(struct evhttp_request *request, int sendbody);
 void storage_put(struct evhttp_request *request);
 void storage_delete(struct evhttp_request *request);
-void storage_head(struct evhttp_request *request);
 
 /* AUTH */
 
