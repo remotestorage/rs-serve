@@ -69,7 +69,7 @@ void init_config(int argc, char **argv) {
     } else if(opt == 'n') {
       rs_hostname = optarg;
     } else if(opt == 'r') {
-      rs_storage_root = optarg;
+      rs_storage_root = strdup(optarg);
       rs_storage_root_len = strlen(rs_storage_root);
     } else if(opt == 'h') {
       print_help(argv[0]);
@@ -90,4 +90,8 @@ void init_config(int argc, char **argv) {
     rs_storage_root_len = strlen(rs_storage_root);
     rs_storage_root = realloc(rs_storage_root, rs_storage_root_len + 1);
   }
+}
+
+void cleanup_config() {
+  free(rs_storage_root);
 }

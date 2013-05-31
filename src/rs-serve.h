@@ -48,10 +48,11 @@ extern magic_t magic_cookie;
 /* CONFIG */
 
 void init_config(int argc, char **argv);
+void cleanup_config(void);
 
 /* COMMON */
 
-void log_starting();
+void log_starting(void);
 void log_request(struct evhttp_request *request);
 void add_cors_headers(struct evkeyvalq *headers);
 

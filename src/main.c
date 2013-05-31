@@ -21,6 +21,7 @@ void cleanup_handler(int signum) {
   evhttp_free(server);
   event_base_free(base);
   magic_close(magic_cookie);
+  cleanup_config();
   fprintf(stderr, "Exiting.\n");
   exit(EXIT_SUCCESS);
 }
