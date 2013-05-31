@@ -1,13 +1,18 @@
 #!/bin/bash
 
 get() {
-  curl $1 >/dev/null 2>&1
+  curl -H "Authorization: Bearer static-token-for-now" $1 >/dev/null 2>&1
 }
 
 valgrind --leak-check=full --show-reachable=yes --log-file=leakcheck.log ./rs-serve &
 
 sleep 2
 
+# webfinger requests
+get http://localhost:8181/.well-known/webfinger
+get http://localhost:8181/.well-known/webfinger?resource=acct%3Ame@local.dev
+# authorization request
+get http://localhost:8181/auth?redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fsome%2Fapp
 # retrieve some directories
 get http://localhost:8181/storage/ 
 get http://localhost:8181/storage/src/

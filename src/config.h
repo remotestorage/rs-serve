@@ -15,7 +15,7 @@
 
 // address & port to bind to
 #define RS_ADDRESS NULL
-#define RS_PORT 80
+#define RS_PORT 8181
 
 // only used for webfinger result at the moment
 #define RS_SCHEME "http"
