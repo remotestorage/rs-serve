@@ -25,7 +25,29 @@ void cleanup_handler(int signum) {
   exit(EXIT_SUCCESS);
 }
 
+int rs_port = 80;
+
+static struct option long_options[] = {
+  { "port", required_argument, 0, 'p' },
+  { 0, 0, 0, 0 }
+};
+
 int main(int argc, char **argv) {
+
+  int opt;
+  for(;;) {
+    int opt_index = 0;
+    opt = getopt_long(argc, argv, "p:", long_options, &opt_index);
+    if(opt == '?') {
+      // invalid option
+      exit(EXIT_FAILURE);
+    } else if(opt == -1) {
+      // no more options
+      break;
+    } else if(opt == 'p') {
+      rs_port = atoi(optarg);
+    }
+  }
 
   event_set_fatal_callback(fatal_error_callback);
 

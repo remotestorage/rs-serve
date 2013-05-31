@@ -4,7 +4,7 @@ get() {
   curl -H "Authorization: Bearer static-token-for-now" $1 >/dev/null 2>&1
 }
 
-valgrind --leak-check=full --show-reachable=yes --log-file=leakcheck.log ./rs-serve &
+valgrind --leak-check=full --show-reachable=yes --log-file=leakcheck.log ./rs-serve -p 8181 &
 
 sleep 2
 
