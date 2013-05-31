@@ -44,6 +44,11 @@ extern magic_t magic_cookie;
 void log_starting(const char *address, int port);
 void log_request(struct evhttp_request *request);
 
+/* HANDLER */
+
+void fatal_error_callback(int err);
+void handle_request_callback(struct evhttp_request *request, void *ctx);
+
 /* STORAGE */
 
 void storage_options(struct evhttp_request *request);
