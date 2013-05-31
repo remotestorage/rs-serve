@@ -23,6 +23,9 @@
 // request path to the authorization handler
 #define RS_AUTH_PATH "/auth"
 #define RS_AUTH_PATH_LEN 5
+// request path to webfinger handler
+#define RS_WEBFINGER_PATH "/.well-known/webfinger"
+#define RS_WEBFINGER_PATH_LEN 22
 
 // path to the storage-root on the filesystem
 #define RS_STORAGE_ROOT "/home/nil/src/rs-serve"

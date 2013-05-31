@@ -53,6 +53,10 @@ static void handle_auth_request(struct evhttp_request *request) {
   }
 }
 
+static void handle_webfinger_request(struct evhttp_request *request) {
+  evhttp_send_reply(request, HTTP_OK, NULL, NULL);
+}
+
 static void handle_bad_request(struct evhttp_request *request) {
   evhttp_send_error(request, HTTP_BADREQUEST, NULL);
 }
@@ -65,6 +69,8 @@ static void handle_request_callback(struct evhttp_request *request, void *ctx) {
     handle_storage_request(request);
   } else if(strncmp(uri, RS_AUTH_PATH, RS_AUTH_PATH_LEN) == 0) {
     handle_auth_request(request);
+  } else if(strncmp(uri, RS_WEBFINGER_PATH, RS_WEBFINGER_PATH_LEN) == 0) {
+    handle_webfinger_request(request);
   } else {
     handle_bad_request(request);
   }
