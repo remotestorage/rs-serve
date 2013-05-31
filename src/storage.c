@@ -14,6 +14,13 @@
 
 #define EXTRACT_PATH(request) (evhttp_request_get_uri(request) + RS_STORAGE_PATH_LEN)
 
+/**
+ * validate_path(request, path)
+ *
+ * Protect from directory traversal attacks.
+ *
+ * Returns 1 when path is valid, else returns 0 and sends a BADREQUEST response.
+ */
 static int validate_path(struct evhttp_request *request, const char *path) {
   if(strstr(path, "../") == NULL) {
     return 1;
@@ -23,6 +30,14 @@ static int validate_path(struct evhttp_request *request, const char *path) {
   }
 }
 
+/**
+ * escape_name(name)
+ *
+ * Escape all occurances of quotes ('"') and backslashes ('\') to make the
+ * resulted string usable in a directory listing.
+ *
+ * Allocates a new string that needs to be free()d by the caller.
+ */
 static char *escape_name(const char *name) {
   int max_len = strlen(name) * 2, i = 0;
   char *escaped = malloc(max_len + 1);
@@ -42,6 +57,12 @@ static char *escape_name(const char *name) {
   return escaped;
 }
 
+/**
+ * storage_options(request)
+ *
+ * Handle a OPTIONS request by sending an empty response with appropriate
+ * CORS headers.
+ */
 void storage_options(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
@@ -49,6 +70,24 @@ void storage_options(struct evhttp_request *request) {
   evhttp_send_reply(request, HTTP_OK, NULL, NULL);
 }
 
+/**
+ * storage_get(request, sendbody)
+ *
+ * Handle a GET or HEAD request. If sendbody is zero, the body is not send.
+ * If the given request URI carries a trailing forward slash ('/'), a JSON
+ * directory listing is generated and sent.
+ * If the given file doesn't exist, NOTFOUND is sent.
+ * Otherwise the contents of the file are sent.
+ *
+ * The following headers are set:
+ *   Content-Type   - in case of a directory listing, this is "application/json",
+ *                    otherwise libmagic is used to guess the MIME type.
+ *   Content-Length - In case of a HEAD request this is set to the number of bytes
+ *                    in the file as reported by stat(). Otherwise it's automatically
+ *                    set by libevent based on the actual number of bytes sent.
+ *
+ * Additionally CORS headers are set through add_cors_headers().
+ */
 void storage_get(struct evhttp_request *request, int sendbody) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
@@ -190,6 +229,17 @@ void storage_get(struct evhttp_request *request, int sendbody) {
   evbuffer_free(buf);
 }
 
+/**
+ * storage_put(request)
+ *
+ * Handle a PUT request. If the request URI carries a trailing slash, the path
+ * is interpreted as a directory and thus BADREQUEST is sent.
+ * Otherwise a file and possibly it's parent directories are created and the
+ * request body is written there.
+ *
+ * The mode of newly created files depends on RS_FILE_CREATE_MODE (and the
+ * current umask).
+ */
 void storage_put(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
