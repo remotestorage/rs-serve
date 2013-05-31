@@ -106,6 +106,14 @@ void storage_get(struct evhttp_request *request, int sendbody) {
               snprintf(rev, 99, "%lld", ((long long)file_stat_buf.st_mtime) * 1000);
               evbuffer_add(buf, rev, strlen(rev));
             }
+            if(first) {
+              // empty directory.
+              // FIXME: should be treated as non-existant, but that would require it to
+              //   also not show up in the parent, which would require recursive checks
+              //   for each listing item to see if there are any actual files below any
+              //   directory item.
+              evbuffer_add(buf, "{", 1);
+            }
             evbuffer_add(buf, "}", 1);
             evhttp_send_reply(request, HTTP_OK, NULL, buf);
           }
