@@ -26,4 +26,10 @@ void storage_put(struct evhttp_request *request);
 void storage_delete(struct evhttp_request *request);
 void storage_head(struct evhttp_request *request);
 
+/* AUTH */
+
+void auth_get(struct evhttp_request *request);
+void auth_put(struct evhttp_request *request);
+void auth_delete(struct evhttp_request *request);
+
 #endif

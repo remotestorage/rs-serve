@@ -3,16 +3,15 @@
 
 #define RS_ADDRESS NULL
 #define RS_PORT 8181
-#define RS_ALLOWED_METHODS EVHTTP_REQ_OPTIONS | EVHTTP_REQ_HEAD | EVHTTP_REQ_GET |\
-  EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE
-
+#define RS_STORAGE_PATH "/storage"
+#define RS_AUTH_PATH "/auth"
 
 static void fatal_error_callback(int err) {
   fprintf(stderr, "A fatal error occured (code: %d)\nExiting.\n", err);
   exit(EXIT_FAILURE);
 }
 
-static void handle_request_callback(struct evhttp_request *request, void *ctx) {
+static void handle_storage_request(struct evhttp_request *request) {
   switch(evhttp_request_get_command(request)) {
   case EVHTTP_REQ_OPTIONS:
     storage_options(request);
@@ -29,6 +28,39 @@ static void handle_request_callback(struct evhttp_request *request, void *ctx) {
   case EVHTTP_REQ_HEAD:
     storage_head(request);
     break;
+  }
+}
+
+static void handle_auth_request(struct evhttp_request *request) {
+  switch(evhttp_request_get_command(request)) {
+  case EVHTTP_REQ_GET: // request authorization or list current authorizations
+    auth_get(request);
+    break;
+  case EVHTTP_REQ_PUT: // confirm authorization
+    auth_put(request);
+    break;
+  case EVHTTP_REQ_DELETE: // delete existing authorization
+    auth_delete(request);
+    break;
+  default:
+    evhttp_send_error(request, HTTP_BADMETHOD, NULL);
+  }
+}
+
+static void handle_bad_request(struct evhttp_request *request) {
+  evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+}
+
+static void handle_request_callback(struct evhttp_request *request, void *ctx) {
+
+  const char *uri = evhttp_request_get_uri(request);
+
+  if(strncmp(uri, RS_STORAGE_PATH, strlen(RS_STORAGE_PATH)) == 0) {
+    handle_storage_request(request);
+  } else if(strncmp(uri, RS_AUTH_PATH, strlen(RS_AUTH_PATH)) == 0) {
+    handle_auth_request(request);
+  } else {
+    handle_bad_request(request);
   }
 
   log_request(request);
@@ -53,7 +85,7 @@ int main(int argc, char **argv) {
   }
 
   evhttp_bind_socket(server, RS_ADDRESS, RS_PORT);
-  evhttp_set_allowed_methods(server, RS_ALLOWED_METHODS);
+  evhttp_set_allowed_methods(server, EVHTTP_REQ_OPTIONS | EVHTTP_REQ_HEAD | EVHTTP_REQ_GET | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE);
   evhttp_set_gencb(server, handle_request_callback, NULL);
 
   log_starting(RS_ADDRESS, RS_PORT);
