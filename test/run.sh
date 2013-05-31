@@ -3,7 +3,7 @@
 mkdir -p tmp/
 
 ./rs-serve --hostname test.host --port 8123 > tmp/test-server.log 2>&1 &
-sleep 2
+sleep 1
 
 GET() {
   curl http://localhost:8123$1 > tmp/test-response 2>/dev/null
@@ -26,4 +26,3 @@ for test in $(ls test/tests/*.sh) ; do
 done
 
 kill %1
-sleep 2
