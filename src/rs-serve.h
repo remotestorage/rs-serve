@@ -13,6 +13,8 @@
 #ifndef RS_SERVE_H
 #define RS_SERVE_H
 
+#define _XOPEN_SOURCE_EXTENDED
+
 // standard headers
 #include <stdlib.h>
 #include <stdio.h>
