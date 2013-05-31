@@ -43,3 +43,9 @@ void log_request(struct evhttp_request *request) {
          evhttp_request_get_uri(request),
          evhttp_request_get_response_code(request));
 } 
+
+void add_cors_headers(struct evkeyvalq *headers) {
+  evhttp_add_header(headers, "Access-Control-Allow-Origin", RS_ALLOW_ORIGIN);
+  evhttp_add_header(headers, "Access-Control-Allow-Headers", RS_ALLOW_HEADERS);
+  evhttp_add_header(headers, "Access-Control-Allow-Methods", RS_ALLOW_METHODS);
+}

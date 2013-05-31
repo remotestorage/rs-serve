@@ -14,12 +14,6 @@
 
 #define EXTRACT_PATH(request) (evhttp_request_get_uri(request) + RS_STORAGE_PATH_LEN)
 
-void add_cors_headers(struct evkeyvalq *headers) {
-  evhttp_add_header(headers, "Access-Control-Allow-Origin", RS_ALLOW_ORIGIN);
-  evhttp_add_header(headers, "Access-Control-Allow-Headers", RS_ALLOW_HEADERS);
-  evhttp_add_header(headers, "Access-Control-Allow-Methods", RS_ALLOW_METHODS);
-}
-
 void storage_options(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
