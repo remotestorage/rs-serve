@@ -95,6 +95,8 @@ void storage_get(struct evhttp_request *request, int sendbody) {
             evbuffer_add(buf, "}", 1);
             evhttp_send_reply(request, HTTP_OK, NULL, buf);
           }
+          free(entryp);
+          free(dir);
         }
       } else {
         // HEAD response
