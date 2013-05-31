@@ -72,22 +72,36 @@ static void handle_request_callback(struct evhttp_request *request, void *ctx) {
   log_request(request);
 }
 
+magic_t magic_cookie;
+
 int main(int argc, char **argv) {
   event_set_fatal_callback(fatal_error_callback);
   event_enable_debug_mode();
+
+  magic_cookie = magic_open(MAGIC_MIME_TYPE);
+
+  if(magic_cookie == NULL) {
+    perror("magic_open() failed");
+    exit(EXIT_FAILURE);
+  }
+
+  if(magic_load(magic_cookie, RS_MAGIC_DATABASE) != 0) {
+    fprintf(stderr, "magic_load() failed: %s\n", magic_error(magic_cookie));
+    exit(EXIT_FAILURE);
+  }
 
   struct event_base *base = event_base_new();
 
   if(! base) {
     perror("Failed to create event base");
-    return 1;
+    exit(EXIT_FAILURE);
   }
 
   struct evhttp *server = evhttp_new(base);
 
   if(! server) {
     perror("Failed to create server");
-    return 2;
+    exit(EXIT_FAILURE);
   }
 
   evhttp_bind_socket(server, RS_ADDRESS, RS_PORT);

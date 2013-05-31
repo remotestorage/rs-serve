@@ -13,15 +13,22 @@
 #ifndef RS_CONFIG_H
 #define RS_CONFIG_H
 
+// address & port to bind to
 #define RS_ADDRESS NULL
 #define RS_PORT 8181
 
+// request path to the storage-root
 #define RS_STORAGE_PATH "/storage"
 #define RS_STORAGE_PATH_LEN 8
+// request path to the authorization handler
 #define RS_AUTH_PATH "/auth"
 #define RS_AUTH_PATH_LEN 5
 
+// path to the storage-root on the filesystem
 #define RS_STORAGE_ROOT "/home/nil/src/rs-serve"
 #define RS_STORAGE_ROOT_LEN 22
+
+// magic database file to use (NULL indicates system default)
+#define RS_MAGIC_DATABASE NULL
 
 #endif

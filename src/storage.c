@@ -25,10 +25,9 @@ void storage_get(struct evhttp_request *request, int sendbody) {
   int disk_path_len = path_len + RS_STORAGE_ROOT_LEN;
   char disk_path[disk_path_len + 1];
   sprintf(disk_path, "%s%s", RS_STORAGE_ROOT, path);
-
   struct stat stat_buf;
-
   struct evbuffer *buf = evbuffer_new();
+  struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
 
   if(stat(disk_path, &stat_buf) != 0) {
     // stat failed
@@ -41,6 +40,7 @@ void storage_get(struct evhttp_request *request, int sendbody) {
     // directory requested
     if(S_ISDIR(stat_buf.st_mode)) {
       // directory found
+      evhttp_add_header(headers, "Content-Type", "application/json");
       if(sendbody) {
         // GET response
         DIR *dir = opendir(disk_path);
@@ -107,6 +107,12 @@ void storage_get(struct evhttp_request *request, int sendbody) {
   } else {
     // file requested
     if(S_ISREG(stat_buf.st_mode)) {
+      const char *mime_type = magic_file(magic_cookie, disk_path);
+      if(mime_type == NULL) {
+        fprintf(stderr, "magic failed: %s\n", magic_error(magic_cookie));
+      } else {
+        evhttp_add_header(headers, "Content-Type", mime_type);
+      }
       // file found
       if(sendbody) {
         // GET response
@@ -114,6 +120,10 @@ void storage_get(struct evhttp_request *request, int sendbody) {
         evhttp_send_reply(request, HTTP_OK, NULL, buf);
       } else {
         // HEAD response
+        char len[100];
+        // not sure how to format off_t correctly, so casting to longest int.
+        snprintf(len, 99, "%lld", (long long int)stat_buf.st_size);
+        evhttp_add_header(headers, "Content-Length", len);
         evhttp_send_reply(request, HTTP_OK, NULL, NULL);
       }
     } else {

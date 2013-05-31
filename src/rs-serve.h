@@ -30,9 +30,14 @@
 #include <event2/buffer.h>
 #include <event2/http.h>
 
+// libmagic headers
+#include <magic.h>
+
 // rs-serve headers
 
 #include "config.h"
+
+extern magic_t magic_cookie;
 
 /* COMMON */
 
