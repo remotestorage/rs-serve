@@ -14,7 +14,7 @@
 
 #define EXTRACT_PATH(request) (evhttp_request_get_uri(request) + RS_STORAGE_PATH_LEN)
 
-int validate_path(struct evhttp_request *request, const char *path) {
+static int validate_path(struct evhttp_request *request, const char *path) {
   if(strstr(path, "../") == NULL) {
     return 1;
   } else {
@@ -23,7 +23,7 @@ int validate_path(struct evhttp_request *request, const char *path) {
   }
 }
 
-char *escape_name(const char *name) {
+static char *escape_name(const char *name) {
   int max_len = strlen(name) * 2, i = 0;
   char *escaped = malloc(max_len + 1);
   if(escaped == NULL) {
@@ -178,6 +178,7 @@ void storage_get(struct evhttp_request *request, int sendbody) {
         // not sure how to format off_t correctly, so casting to longest int.
         snprintf(len, 99, "%lld", (long long int)stat_buf.st_size);
         evhttp_add_header(headers, "Content-Length", len);
+        // TODO: add ETag
         evhttp_send_reply(request, HTTP_OK, NULL, NULL);
       }
     } else {
@@ -192,10 +193,73 @@ void storage_get(struct evhttp_request *request, int sendbody) {
 void storage_put(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
+
   if(! authorize_request(request)) {
     return;
   }
-  evhttp_send_reply(request, HTTP_OK, NULL, NULL);
+
+  const char *path = EXTRACT_PATH(request);
+  int path_len = strlen(path);
+  if(! validate_path(request, path)) {
+    return;
+  }
+
+  int disk_path_len = path_len + RS_STORAGE_ROOT_LEN;
+  char disk_path[disk_path_len + 1];
+  sprintf(disk_path, "%s%s", RS_STORAGE_ROOT, path);
+
+  if(path[path_len - 1] == '/') {
+    // no PUT on directories.
+    evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+  } else {
+    struct evbuffer *buf = evhttp_request_get_input_buffer(request);
+    // create parent(s)
+    char *path_copy = strdup(path);
+    char *dir_path = dirname(path_copy);
+    char *saveptr = NULL;
+    char *dir_name;
+    // directory fd for reference
+    int dirfd = open(RS_STORAGE_ROOT, O_RDONLY);
+    struct stat dir_stat;
+    for(dir_name = strtok_r(dir_path, "/", &saveptr);
+        dir_name != NULL;
+        dir_name = strtok_r(NULL, "/", &saveptr)) {
+      if(fstatat(dirfd, dir_name, &dir_stat, 0) == 0) {
+        if(! S_ISDIR(dir_stat.st_mode)) {
+          // exists, but not a directory.
+          fprintf(stderr, "Can't PUT to %s, found a non-directory parent.\n", path);
+          evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+          free(path_copy);
+          return;
+        }
+      } else {
+        // directory doesn't exist, create it.
+        if(mkdirat(dirfd, dir_name, S_IRWXU | S_IRWXG) != 0) {
+          perror("mkdirat() failed");
+          evhttp_send_error(request, HTTP_INTERNAL, NULL);
+          free(path_copy);
+          return;
+        }
+      }
+      dirfd = openat(dirfd, dir_name, O_RDONLY);
+    }
+    free(path_copy);
+
+    // open (and possibly create) file
+    int fd = open(disk_path, O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
+                  RS_FILE_CREATE_MODE);
+    if(fd == -1) {
+      perror("open() failed");
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    } else if(evbuffer_write(buf, fd) == -1) {
+      perror("evbuffer_write() failed");
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    } else {
+      // writing succeeded
+      // TODO: add ETag
+      evhttp_send_reply(request, HTTP_OK, NULL, NULL);
+    }
+  }
 }
 
 void storage_delete(struct evhttp_request *request) {

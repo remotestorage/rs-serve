@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <getopt.h>
+#include <libgen.h>
 
 // libevent headers
 #include <event2/event.h>

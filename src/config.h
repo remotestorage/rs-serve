@@ -52,4 +52,7 @@ extern int rs_storage_root_len;
 #define RS_ALLOW_HEADERS "Authorization, Content-Type, Content-Length, ETag"
 #define RS_ALLOW_METHODS "GET, PUT, DELETE"
 
+// permissions for newly created files
+#define RS_FILE_CREATE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
+
 #endif
