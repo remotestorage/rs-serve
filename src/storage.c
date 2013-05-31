@@ -19,6 +19,9 @@ void storage_options(struct evhttp_request *request) {
 }
 
 void storage_get(struct evhttp_request *request, int sendbody) {
+  if(! authorize_request(request)) {
+    return;
+  }
   const char *path = EXTRACT_PATH(request);
   size_t path_len = strlen(path);
 
@@ -138,9 +141,15 @@ void storage_get(struct evhttp_request *request, int sendbody) {
 }
 
 void storage_put(struct evhttp_request *request) {
+  if(! authorize_request(request)) {
+    return;
+  }
   evhttp_send_reply(request, HTTP_OK, NULL, NULL);
 }
 
 void storage_delete(struct evhttp_request *request) {
+  if(! authorize_request(request)) {
+    return;
+  }
   evhttp_send_reply(request, HTTP_OK, NULL, NULL);
 }

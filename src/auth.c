@@ -12,6 +12,21 @@
 
 #include "rs-serve.h"
 
+int authorize_request(struct evhttp_request *request) {
+  struct evkeyvalq *headers = evhttp_request_get_input_headers(request);
+  const char *auth_header = evhttp_find_header(headers, "Authorization");
+
+  if(auth_header && strncmp(auth_header, "Bearer ", 7) != 0) {
+    evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+    return 0;
+  } else if(auth_header && strcmp(auth_header + 7, RS_TOKEN) == 0) {
+    return 1;
+  } else {
+    evhttp_send_error(request, HTTP_UNAUTHORIZED, NULL);
+    return 0;
+  }
+}
+
 void auth_get(struct evhttp_request *request) {}
 
 void auth_put(struct evhttp_request *request) {}

@@ -17,6 +17,9 @@
 #define RS_ADDRESS NULL
 #define RS_PORT 8181
 
+// static auth token
+#define RS_TOKEN "static-token-for-now"
+
 // request path to the storage-root
 #define RS_STORAGE_PATH "/storage"
 #define RS_STORAGE_PATH_LEN 8
