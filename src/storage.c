@@ -14,6 +14,34 @@
 
 #define EXTRACT_PATH(request) (evhttp_request_get_uri(request) + RS_STORAGE_PATH_LEN)
 
+int validate_path(struct evhttp_request *request, const char *path) {
+  if(strstr(path, "../") == NULL) {
+    return 1;
+  } else {
+    evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+    return 0;
+  }
+}
+
+char *escape_name(const char *name) {
+  int max_len = strlen(name) * 2, i = 0;
+  char *escaped = malloc(max_len + 1);
+  if(escaped == NULL) {
+    perror("malloc() failed");
+    return NULL;
+  }
+  const char *name_p;
+  for(name_p = name; *name_p != 0; name_p++) {
+    if(*name_p == '"' || *name_p == '\\') {
+      escaped[i++] = '\\';
+    }
+    escaped[i++] = *name_p;
+  }
+  escaped[i++] = 0;
+  escaped = realloc(escaped, i);
+  return escaped;
+}
+
 void storage_options(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
@@ -31,6 +59,10 @@ void storage_get(struct evhttp_request *request, int sendbody) {
   const char *path = EXTRACT_PATH(request);
   size_t path_len = strlen(path);
 
+  if(! validate_path(request, path)) {
+    return;
+  }
+
   int disk_path_len = path_len + RS_STORAGE_ROOT_LEN;
   char disk_path[disk_path_len + 1];
   sprintf(disk_path, "%s%s", RS_STORAGE_ROOT, path);
@@ -43,7 +75,14 @@ void storage_get(struct evhttp_request *request, int sendbody) {
       fprintf(stderr, "while getting %s, ", disk_path);
       perror("stat() failed");
     }
-    evhttp_send_error(request, HTTP_NOTFOUND, NULL);
+    if(path[path_len - 1] == '/') {
+      // empty dir listing.
+      evhttp_add_header(headers, "Content-Type", "application/json");
+      evbuffer_add(buf, "{}", 2);
+      evhttp_send_reply(request, HTTP_OK, NULL, buf);
+    } else {
+      evhttp_send_error(request, HTTP_NOTFOUND, NULL);
+    }
   } else if(path[path_len - 1] == '/') {
     // directory requested
     if(S_ISDIR(stat_buf.st_mode)) {
@@ -64,7 +103,6 @@ void storage_get(struct evhttp_request *request, int sendbody) {
             evhttp_send_error(request, HTTP_INTERNAL, NULL);
           } else {
             struct stat file_stat_buf;
-            char rev[100];
             int entry_len;
             int first = 1;
             // FIXME: missing lots of error checking.
@@ -89,23 +127,21 @@ void storage_get(struct evhttp_request *request, int sendbody) {
               sprintf(full_path, "%s%s", disk_path, entryp->d_name);
               stat(full_path, &file_stat_buf);
 
-              evbuffer_add(buf, "\"", 1);
-              // FIXME: escape quotes!!!
-              evbuffer_add(buf, entryp->d_name, entry_len);
-              if(S_ISDIR(file_stat_buf.st_mode)) {
-                evbuffer_add(buf, "/", 1);
+              char *escaped_name = escape_name(entryp->d_name);
+              if(! escaped_name) {
+                // failed to allocate name
+                evhttp_send_error(request, HTTP_INTERNAL, NULL);
+                free(entryp);
+                free(dir);
+                return;
               }
-              evbuffer_add(buf, "\":", 2);
-
-              snprintf(rev, 99, "%lld", ((long long)file_stat_buf.st_mtime) * 1000);
-              evbuffer_add(buf, rev, strlen(rev));
+              evbuffer_add_printf(buf, "\"%s%s\":%lld", escaped_name,
+                                  S_ISDIR(file_stat_buf.st_mode) ? "/" : "",
+                                  ((long long)file_stat_buf.st_mtime) * 1000);
+              free(escaped_name);
             }
             if(first) {
               // empty directory.
-              // FIXME: should be treated as non-existant, but that would require it to
-              //   also not show up in the parent, which would require recursive checks
-              //   for each listing item to see if there are any actual files below any
-              //   directory item.
               evbuffer_add(buf, "{", 1);
             }
             evbuffer_add(buf, "}", 1);
