@@ -1,10 +1,16 @@
+/*
+ * rs-serve - (c) 2013 Niklas E. Cathor
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "rs-serve.h"
-
-#define RS_ADDRESS NULL
-#define RS_PORT 8181
-#define RS_STORAGE_PATH "/storage"
-#define RS_AUTH_PATH "/auth"
 
 static void fatal_error_callback(int err) {
   fprintf(stderr, "A fatal error occured (code: %d)\nExiting.\n", err);
@@ -55,9 +61,9 @@ static void handle_request_callback(struct evhttp_request *request, void *ctx) {
 
   const char *uri = evhttp_request_get_uri(request);
 
-  if(strncmp(uri, RS_STORAGE_PATH, strlen(RS_STORAGE_PATH)) == 0) {
+  if(strncmp(uri, RS_STORAGE_PATH, RS_STORAGE_PATH_LEN) == 0) {
     handle_storage_request(request);
-  } else if(strncmp(uri, RS_AUTH_PATH, strlen(RS_AUTH_PATH)) == 0) {
+  } else if(strncmp(uri, RS_AUTH_PATH, RS_AUTH_PATH_LEN) == 0) {
     handle_auth_request(request);
   } else {
     handle_bad_request(request);
