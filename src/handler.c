@@ -23,6 +23,8 @@ static void handle_storage_request(struct evhttp_request *request) {
   case EVHTTP_REQ_HEAD:
     storage_get(request, 0);
     break;
+  default:
+    evhttp_send_error(request, HTTP_BADMETHOD, NULL);
   }
 }
 

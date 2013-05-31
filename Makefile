@@ -1,4 +1,4 @@
-CFLAGS=${shell pkg-config libevent --cflags} -ggdb
+CFLAGS=${shell pkg-config libevent --cflags} -ggdb -Wall
 LDFLAGS=${shell pkg-config libevent --libs} -lmagic
 
 OBJECTS=src/main.o src/common.o src/storage.o src/auth.o src/handler.o
