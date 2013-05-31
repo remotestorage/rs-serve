@@ -39,8 +39,10 @@ extern char *rs_hostname;
 #define RS_WEBFINGER_PATH_LEN 22
 
 // path to the storage-root on the filesystem
-#define RS_STORAGE_ROOT "/home/nil/src/rs-serve"
-#define RS_STORAGE_ROOT_LEN 22
+extern char *rs_storage_root;
+#define RS_STORAGE_ROOT rs_storage_root
+extern int rs_storage_root_len;
+#define RS_STORAGE_ROOT_LEN rs_storage_root_len
 
 // magic database file to use (NULL indicates system default)
 #define RS_MAGIC_DATABASE NULL

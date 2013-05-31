@@ -20,11 +20,12 @@ char *time_now() {
   return timestamp;
 }
 
-void log_starting(const char *address, int port) {
+void log_starting() {
+  const char *address = RS_ADDRESS;
   if(! address) {
     address = "0.0.0.0";
   }
-  printf("[%s] Server listening on %s:%d\n", time_now(), address, port);
+  printf("[%s] Serving from \"%s\" on %s:%d\n", time_now(), RS_STORAGE_ROOT, address, RS_PORT);
 }
 
 void log_request(struct evhttp_request *request) {
