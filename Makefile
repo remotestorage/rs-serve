@@ -21,6 +21,9 @@ clean:
 	@rm -f $(OBJECTS)
 	@rm -f *~ src/*~
 
+test: all
+	@test/run.sh
+
 leakcheck: all
 	scripts/leakcheck.sh
 
