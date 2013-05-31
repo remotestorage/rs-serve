@@ -17,11 +17,14 @@ int authorize_request(struct evhttp_request *request) {
   const char *auth_header = evhttp_find_header(headers, "Authorization");
 
   if(auth_header && strncmp(auth_header, "Bearer ", 7) != 0) {
+    // invalid Authorization header (ie doesn't start with "Bearer ")
     evhttp_send_error(request, HTTP_BADREQUEST, NULL);
     return 0;
   } else if(auth_header && strcmp(auth_header + 7, RS_TOKEN) == 0) {
+    // Authorization header present and token correct
     return 1;
   } else {
+    // no Authorization header or invalid token
     evhttp_send_error(request, HTTP_UNAUTHORIZED, NULL);
     return 0;
   }
