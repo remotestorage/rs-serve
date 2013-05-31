@@ -45,7 +45,13 @@ static void handle_auth_request(struct evhttp_request *request) {
 }
 
 static void handle_webfinger_request(struct evhttp_request *request) {
-  evhttp_send_reply(request, HTTP_OK, NULL, NULL);
+  const char *uri = evhttp_request_get_uri(request);
+  const char *resource_query = strstr(uri, "resource=");
+  if(resource_query) {
+    webfinger_get_resource(request, resource_query + 10);
+  } else {
+    webfinger_get_hostmeta(request);
+  }
 }
 
 static void handle_bad_request(struct evhttp_request *request) {

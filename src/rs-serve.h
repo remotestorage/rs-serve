@@ -68,4 +68,9 @@ void auth_get(struct evhttp_request *request);
 void auth_put(struct evhttp_request *request);
 void auth_delete(struct evhttp_request *request);
 
+/* WEBFINGER */
+
+void webfinger_get_resource(struct evhttp_request *request, const char *address);
+void webfinger_get_hostmeta(struct evhttp_request *request);
+
 #endif

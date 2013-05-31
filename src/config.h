@@ -15,7 +15,13 @@
 
 // address & port to bind to
 #define RS_ADDRESS NULL
-#define RS_PORT 8181
+#define RS_PORT 80
+
+// only used for webfinger result at the moment
+#define RS_SCHEME "http"
+#define RS_HOSTNAME "local.dev"
+#define RS_STORAGE_API "draft-dejong-remotestorage-00"
+#define RS_AUTH_METHOD "http://tools.ietf.org/html/rfc6749#section-4.2"
 
 // static auth token
 #define RS_TOKEN "static-token-for-now"
