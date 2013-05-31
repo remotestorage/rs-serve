@@ -40,6 +40,7 @@
 
 // rs-serve headers
 
+#include "version.h"
 #include "config.h"
 
 extern magic_t magic_cookie;
