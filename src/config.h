@@ -45,7 +45,7 @@
 
 // CORS header values
 #define RS_ALLOW_ORIGIN "*"
-#define RS_ALLOW_HEADERS "Authorization Content-Type Content-Length ETag"
-#define RS_ALLOW_METHODS "OPTIONS GET PUT DELETE"
+#define RS_ALLOW_HEADERS "Authorization, Content-Type, Content-Length, ETag"
+#define RS_ALLOW_METHODS "GET, PUT, DELETE"
 
 #endif
