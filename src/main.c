@@ -14,9 +14,20 @@
 
 magic_t magic_cookie;
 
+struct event_base *base;
+struct evhttp *server;
+
+void cleanup_handler(int signum) {
+  evhttp_free(server);
+  event_base_free(base);
+  magic_close(magic_cookie);
+  fprintf(stderr, "Exiting.\n");
+  exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char **argv) {
+
   event_set_fatal_callback(fatal_error_callback);
-  event_enable_debug_mode();
 
   magic_cookie = magic_open(MAGIC_MIME_TYPE);
 
@@ -30,14 +41,21 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  struct event_base *base = event_base_new();
+  base = event_base_new();
 
   if(! base) {
     perror("Failed to create event base");
     exit(EXIT_FAILURE);
   }
 
-  struct evhttp *server = evhttp_new(base);
+  struct sigaction termaction;
+  memset(&termaction, 0, sizeof(struct sigaction));
+  termaction.sa_handler = cleanup_handler;
+
+  sigaction(SIGTERM, &termaction, NULL);
+  sigaction(SIGINT, &termaction, NULL);
+
+  server = evhttp_new(base);
 
   if(! server) {
     perror("Failed to create server");

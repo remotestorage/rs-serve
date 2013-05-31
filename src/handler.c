@@ -65,4 +65,8 @@ void handle_request_callback(struct evhttp_request *request, void *ctx) {
   }
 
   log_request(request);
+
+  if(evhttp_request_is_owned(request)) {
+    evhttp_request_free(request);
+  }
 }
