@@ -30,6 +30,30 @@ static int validate_path(struct evhttp_request *request, const char *path) {
   }
 }
 
+static char *make_disk_path(const char *path, int path_len, int *disk_path_len) {
+  char *prefix;
+  int prefix_len;
+  if(RS_CHROOT) {
+    if(path_len == 0) {
+      prefix = "/";
+      prefix_len = 1;
+    } else {
+      prefix = "";
+      prefix_len = 0;
+    }
+  } else {
+    prefix = RS_STORAGE_ROOT;
+    prefix_len = RS_STORAGE_ROOT_LEN;
+  }
+  *disk_path_len = path_len + prefix_len;
+  char *disk_path = malloc(*disk_path_len + 1);
+  if(disk_path == NULL) {
+    return NULL;
+  }
+  sprintf(disk_path, "%s%s", prefix, path);
+  return disk_path;
+}
+
 /**
  * escape_name(name)
  *
@@ -102,9 +126,8 @@ void storage_get(struct evhttp_request *request, int sendbody) {
     return;
   }
 
-  int disk_path_len = path_len + (RS_CHROOT ? 0 : RS_STORAGE_ROOT_LEN);
-  char disk_path[disk_path_len + 1];
-  sprintf(disk_path, "%s%s", RS_CHROOT ? "" : RS_STORAGE_ROOT, path);
+  int disk_path_len;
+  char *disk_path = make_disk_path(path, path_len, &disk_path_len);
   struct stat stat_buf;
   struct evbuffer *buf = evbuffer_new();
 
@@ -172,6 +195,7 @@ void storage_get(struct evhttp_request *request, int sendbody) {
                 evhttp_send_error(request, HTTP_INTERNAL, NULL);
                 free(entryp);
                 free(dir);
+                free(disk_path);
                 return;
               }
               evbuffer_add_printf(buf, "\"%s%s\":%lld", escaped_name,
@@ -226,6 +250,7 @@ void storage_get(struct evhttp_request *request, int sendbody) {
     }
   }
 
+  free(disk_path);
   evbuffer_free(buf);
 }
 
