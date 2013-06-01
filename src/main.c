@@ -28,10 +28,10 @@ void cleanup_handler(int signum) {
 
 int main(int argc, char **argv) {
 
+  // parse command line arguments, set configuration vars (rs_*)
   init_config(argc, argv);
 
-  event_set_fatal_callback(fatal_error_callback);
-
+  // initialize libmagic
   magic_cookie = magic_open(MAGIC_MIME_TYPE);
 
   if(magic_cookie == NULL) {
@@ -44,6 +44,9 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // initialize libevent
+  event_set_fatal_callback(fatal_error_callback);
+
   base = event_base_new();
 
   if(! base) {
@@ -51,6 +54,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // hook up event handlers (TERM and INT both terminate)
   struct sigaction termaction;
   memset(&termaction, 0, sizeof(struct sigaction));
   termaction.sa_handler = cleanup_handler;
@@ -58,6 +62,7 @@ int main(int argc, char **argv) {
   sigaction(SIGTERM, &termaction, NULL);
   sigaction(SIGINT, &termaction, NULL);
 
+  // setup server
   server = evhttp_new(base);
 
   if(! server) {
@@ -73,7 +78,6 @@ int main(int argc, char **argv) {
   }
   evhttp_set_allowed_methods(server, EVHTTP_REQ_OPTIONS | EVHTTP_REQ_HEAD | EVHTTP_REQ_GET | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE);
   evhttp_set_gencb(server, handle_request_callback, NULL);
-
 
   return event_base_dispatch(base);
 }
