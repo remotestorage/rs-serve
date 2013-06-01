@@ -290,10 +290,9 @@ void storage_put(struct evhttp_request *request) {
       }
       dirfd = openat(dirfd, dir_name, O_RDONLY);
     }
-    free(path_copy);
 
     // dirname() possibly made previous copy unusable
-    path_copy = strdup(path);
+    strcpy(path_copy, path);
     char *file_name = basename(path_copy);
 
     // open (and possibly create) file
