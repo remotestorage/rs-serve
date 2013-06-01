@@ -41,6 +41,9 @@ char *rs_hostname = "local.dev";
 char *rs_storage_root;
 int rs_storage_root_len;
 int rs_chroot = 0;
+// equivalents of rs_storage_root(_len), but rs_chroot aware
+char *rs_real_storage_root;
+int rs_real_storage_root_len;
 
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
@@ -97,6 +100,14 @@ void init_config(int argc, char **argv) {
     }
     rs_storage_root_len = strlen(rs_storage_root);
     rs_storage_root = realloc(rs_storage_root, rs_storage_root_len + 1);
+  }
+
+  if(RS_CHROOT) {
+    rs_real_storage_root = "";
+    rs_real_storage_root_len = 0;
+  } else {
+    rs_real_storage_root = rs_storage_root;
+    rs_real_storage_root_len = rs_storage_root_len;
   }
 
 }

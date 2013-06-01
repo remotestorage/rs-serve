@@ -58,5 +58,9 @@ extern int rs_storage_root_len;
 // whether to change root before serving any files
 extern int rs_chroot;
 #define RS_CHROOT rs_chroot
+extern char *rs_real_storage_root;
+extern int rs_real_storage_root_len;
+#define RS_REAL_STORAGE_ROOT rs_real_storage_root
+#define RS_REAL_STORAGE_ROOT_LEN rs_real_storage_root_len
 
 #endif

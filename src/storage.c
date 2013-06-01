@@ -31,27 +31,13 @@ static int validate_path(struct evhttp_request *request, const char *path) {
 }
 
 static char *make_disk_path(const char *path, int path_len, int *disk_path_len) {
-  char *prefix;
-  int prefix_len;
-  if(RS_CHROOT) {
-    if(path_len == 0) {
-      prefix = "/";
-      prefix_len = 1;
-    } else {
-      prefix = "";
-      prefix_len = 0;
-    }
-  } else {
-    prefix = RS_STORAGE_ROOT;
-    prefix_len = RS_STORAGE_ROOT_LEN;
-  }
-  *disk_path_len = path_len + prefix_len;
+  *disk_path_len = path_len + RS_REAL_STORAGE_ROOT_LEN;
   char *disk_path = malloc(*disk_path_len + 1);
   if(disk_path == NULL) {
     perror("malloc() failed while allocating disk path");
     return NULL;
   }
-  sprintf(disk_path, "%s%s", prefix, path);
+  sprintf(disk_path, "%s%s", RS_REAL_STORAGE_ROOT, path);
   return disk_path;
 }
 
@@ -298,7 +284,7 @@ void storage_put(struct evhttp_request *request) {
     char *saveptr = NULL;
     char *dir_name;
     // directory fd for reference
-    int dirfd = open(RS_CHROOT ? "/" : RS_STORAGE_ROOT, O_RDONLY);
+    int dirfd = open(RS_REAL_STORAGE_ROOT, O_RDONLY);
     if(dirfd == -1) {
       perror("failed to open() storage root");
       evhttp_send_error(request, HTTP_BADREQUEST, NULL);
