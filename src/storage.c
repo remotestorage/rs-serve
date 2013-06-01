@@ -48,6 +48,7 @@ static char *make_disk_path(const char *path, int path_len, int *disk_path_len) 
   *disk_path_len = path_len + prefix_len;
   char *disk_path = malloc(*disk_path_len + 1);
   if(disk_path == NULL) {
+    perror("malloc() failed while allocating disk path");
     return NULL;
   }
   sprintf(disk_path, "%s%s", prefix, path);
@@ -128,6 +129,12 @@ void storage_get(struct evhttp_request *request, int sendbody) {
 
   int disk_path_len;
   char *disk_path = make_disk_path(path, path_len, &disk_path_len);
+  if(disk_path == NULL) {
+    // failed to allocate disk path
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+
   struct stat stat_buf;
   struct evbuffer *buf = evbuffer_new();
 
