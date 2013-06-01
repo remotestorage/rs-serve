@@ -22,6 +22,7 @@ static void print_help(const char *progname) {
           "  -p <port> | --port=<port>     - Bind to given port (default: 80).\n"
           "  -n <name> | --hostname=<name> - Set hostname (defaults to local.dev)\n"
           "  -r <root> | --root=<root>     - Root directory to serve (defaults to cwd)\n"
+          "  --chroot                      - chroot() to root directory before serving any files\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -39,11 +40,13 @@ int rs_port = 80;
 char *rs_hostname = "local.dev";
 char *rs_storage_root;
 int rs_storage_root_len;
+int rs_chroot = 0;
 
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
   { "hostname", required_argument, 0, 'n' },
   { "root", required_argument, 0, 'r' },
+  { "chroot", no_argument, 0, 0 },
   // TODO:
   //{ "listen", required_argument, 0, 'l' },
   //{ "log-file", required_argument, 0, 'f' },
@@ -77,6 +80,11 @@ void init_config(int argc, char **argv) {
     } else if(opt == 'v') {
       print_version();
       exit(EXIT_SUCCESS);
+    } else if(opt == 0) {
+      // long option with no short equivalent
+      if(strcmp(long_options[opt_index].name, "chroot") == 0) {
+        rs_chroot = 1;
+      }
     }
   }
 
@@ -90,6 +98,7 @@ void init_config(int argc, char **argv) {
     rs_storage_root_len = strlen(rs_storage_root);
     rs_storage_root = realloc(rs_storage_root, rs_storage_root_len + 1);
   }
+
 }
 
 void cleanup_config() {

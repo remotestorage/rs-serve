@@ -102,9 +102,9 @@ void storage_get(struct evhttp_request *request, int sendbody) {
     return;
   }
 
-  int disk_path_len = path_len + RS_STORAGE_ROOT_LEN;
+  int disk_path_len = path_len + (RS_CHROOT ? 0 : RS_STORAGE_ROOT_LEN);
   char disk_path[disk_path_len + 1];
-  sprintf(disk_path, "%s%s", RS_STORAGE_ROOT, path);
+  sprintf(disk_path, "%s%s", RS_CHROOT ? "" : RS_STORAGE_ROOT, path);
   struct stat stat_buf;
   struct evbuffer *buf = evbuffer_new();
 
@@ -266,7 +266,13 @@ void storage_put(struct evhttp_request *request) {
     char *saveptr = NULL;
     char *dir_name;
     // directory fd for reference
-    int dirfd = open(RS_STORAGE_ROOT, O_RDONLY);
+    int dirfd = open(RS_CHROOT ? "/" : RS_STORAGE_ROOT, O_RDONLY);
+    if(dirfd == -1) {
+      perror("failed to open() storage root");
+      evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+      free(path_copy);
+      return;
+    }
     struct stat dir_stat;
     for(dir_name = strtok_r(dir_path, "/", &saveptr);
         dir_name != NULL;
@@ -301,7 +307,7 @@ void storage_put(struct evhttp_request *request) {
                     RS_FILE_CREATE_MODE);
     free(path_copy);
     if(fd == -1) {
-      perror("open() failed");
+      perror("openat() failed");
       evhttp_send_error(request, HTTP_INTERNAL, NULL);
     } else if(evbuffer_write(buf, fd) == -1) {
       perror("evbuffer_write() failed");

@@ -44,6 +44,14 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // change root if requested
+  if(RS_CHROOT) {
+    if(chroot(rs_storage_root) != 0) {
+      perror("chroot() failed");
+      exit(EXIT_FAILURE);
+    }
+  }
+
   // initialize libevent
   event_set_fatal_callback(fatal_error_callback);
 

@@ -55,4 +55,8 @@ extern int rs_storage_root_len;
 // permissions for newly created files
 #define RS_FILE_CREATE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
 
+// whether to change root before serving any files
+extern int rs_chroot;
+#define RS_CHROOT rs_chroot
+
 #endif
