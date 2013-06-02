@@ -28,4 +28,7 @@ test: all
 leakcheck: all
 	scripts/leakcheck.sh
 
+limit_check: all
+	scripts/limitcheck.sh 5000
+
 .PHONY: default all clean leakcheck
