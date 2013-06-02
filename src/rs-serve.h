@@ -51,6 +51,7 @@
 #include "version.h"
 #include "config.h"
 #include "auth_struct.h"
+#include "auth_store.h"
 #include "session.h"
 
 extern magic_t magic_cookie;
