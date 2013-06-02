@@ -18,6 +18,8 @@ struct event_base *base;
 struct evhttp *server;
 
 void cleanup_handler(int signum) {
+  fprintf(stderr, "\"%s\" signal caught, cleaning up...\n", strsignal(signum));
+  event_base_loopbreak(base);
   evhttp_free(server);
   event_base_free(base);
   magic_close(magic_cookie);
