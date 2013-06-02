@@ -89,7 +89,7 @@ void webfinger_get_hostmeta(struct evhttp_request *request);
 
 /* UI */
 
-void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *authorization, const char *redirect_uri);
+void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *authorization, const char *redirect_uri, const char *scope_string);
 void ui_list_authorizations(struct evhttp_request *request);
 
 #endif /* !RS_SERVE_H */

@@ -34,6 +34,8 @@ int authorize_request(struct evhttp_request *request) {
 
 void auth_get(struct evhttp_request *request) {
 
+  // TODO: add CSRF protection
+
   struct evhttp_uri *uri = evhttp_uri_parse(evhttp_request_get_uri(request));
 
   const char *query = evhttp_uri_get_query(uri);
@@ -97,10 +99,20 @@ void auth_get(struct evhttp_request *request) {
     memset(authorization, 0, sizeof(struct rs_authorization));
 
     // parse scope parameter
+    char *scope_copy = strdup(scope);
+    if(scope_copy == NULL) {
+      perror("strdup() failed to copy scope parameter");
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+      free(scope);
+      free(redirect_uri);
+      evhttp_uri_free(uri);
+      evhttp_clear_headers(&params);
+      return;
+    }
     char *scope_saveptr = NULL;
     char *scope_part;
     struct rs_auth_scope *last_scope = NULL;
-    for(scope_part = strtok_r(scope, " ", &scope_saveptr);
+    for(scope_part = strtok_r(scope_copy, " ", &scope_saveptr);
         scope_part != NULL;
         scope_part = strtok_r(NULL, " ", &scope_saveptr)) {
       authorization->scope = make_auth_scope(scope_part, last_scope);
@@ -109,14 +121,18 @@ void auth_get(struct evhttp_request *request) {
         free(scope);
         free(redirect_uri);
         free_auth(authorization);
+        if(last_scope) {
+          free_auth_scope(last_scope);
+        }
         evhttp_uri_free(uri);
         evhttp_clear_headers(&params);
         return;
       }
       last_scope = authorization->scope;
     }
+    free(scope_copy);
 
-    ui_prompt_authorization(request, authorization, redirect_uri);
+    ui_prompt_authorization(request, authorization, redirect_uri, scope);
 
     evhttp_clear_headers(&params);
     free(scope);
@@ -140,4 +156,3 @@ void auth_post(struct evhttp_request *request) {
 
 void auth_delete(struct evhttp_request *request) {
 }
-

@@ -20,13 +20,15 @@ static void write_html_tail(struct evbuffer *buf) {
   evbuffer_add_printf(buf, "</body>\n</html>\n");
 }
 
-void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *auth, const char *redirect_uri) {
+void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *auth, const char *redirect_uri, const char *scope_string) {
   struct evbuffer *buf = evbuffer_new();
   if(buf == NULL) {
     evhttp_send_error(request, HTTP_INTERNAL, NULL);
     return;
   }
   write_html_head(buf, "Authorize request");
+
+  // FIXME: this needs lots of escaping!!!
 
   evbuffer_add_printf(buf, "<h1>Authorize request:</h1>\n");
   evbuffer_add_printf(buf, "<table>\n<thead>\n");
@@ -44,6 +46,15 @@ void ui_prompt_authorization(struct evhttp_request *request, struct rs_authoriza
                         scope_name, scope->write ? "read-write" : "read-only");
   }
   evbuffer_add_printf(buf, "</tbody>\n</table>\n");
+
+  evbuffer_add_printf(buf, "<form action=\"%s\" method=\"POST\">\n", RS_AUTH_PATH);
+
+  evbuffer_add_printf(buf, "<input type=\"hidden\" name=\"scope\" value=\"%s\">\n",
+                      scope_string);
+  evbuffer_add_printf(buf, "<input type=\"hidden\" name=\"redirect_uri\" value=\"%s\">\n",
+                      redirect_uri);
+
+  evbuffer_add_printf(buf, "<input type=\"submit\" value=\"Confirm\">\n</form>\n");
   
   write_html_tail(buf);
   evhttp_send_reply(request, HTTP_OK, NULL, buf);
