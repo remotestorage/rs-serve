@@ -12,7 +12,7 @@ rs-serve: $(OBJECTS)
 	@$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
 
 %.o: %.c
-	@echo "[CC] $@"
+	@echo "[CC] ${shell echo $@ | sed 's/src\///' | sed 's/\.o//'}"
 	@$(CC) -c $< -o $@ $(CFLAGS)
 
 clean:
