@@ -130,7 +130,7 @@ void auth_get(struct evhttp_request *request) {
   evhttp_uri_free(uri);
 }
 
-void auth_put(struct evhttp_request *request) {
+void auth_post(struct evhttp_request *request) {
 
   // TODO: generate token
   // TODO: store token

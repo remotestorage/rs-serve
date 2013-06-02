@@ -44,8 +44,8 @@ static void handle_auth_request(struct evhttp_request *request) {
   case EVHTTP_REQ_GET: // request authorization or list current authorizations
     auth_get(request);
     break;
-  case EVHTTP_REQ_PUT: // confirm authorization
-    auth_put(request);
+  case EVHTTP_REQ_POST: // confirm authorization
+    auth_post(request);
     break;
   case EVHTTP_REQ_DELETE: // delete existing authorization
     auth_delete(request);

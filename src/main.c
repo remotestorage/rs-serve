@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
     perror("Failed to bind to socket");
     exit(EXIT_FAILURE);
   }
-  evhttp_set_allowed_methods(server, EVHTTP_REQ_OPTIONS | EVHTTP_REQ_HEAD | EVHTTP_REQ_GET | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE);
+  evhttp_set_allowed_methods(server, EVHTTP_REQ_OPTIONS | EVHTTP_REQ_HEAD | EVHTTP_REQ_GET | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE | EVHTTP_REQ_POST);
   evhttp_set_gencb(server, handle_request_callback, NULL);
 
   if(RS_SET_GID) {

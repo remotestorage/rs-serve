@@ -79,7 +79,7 @@ void storage_delete(struct evhttp_request *request);
 
 int authorize_request(struct evhttp_request *request);
 void auth_get(struct evhttp_request *request);
-void auth_put(struct evhttp_request *request);
+void auth_post(struct evhttp_request *request);
 void auth_delete(struct evhttp_request *request);
 
 /* WEBFINGER */
