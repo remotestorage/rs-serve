@@ -23,6 +23,7 @@ void cleanup_handler(int signum) {
   evhttp_free(server);
   event_base_free(base);
   magic_close(magic_cookie);
+  reset_session_store();
   cleanup_config();
   fprintf(stderr, "Exiting.\n");
   exit(EXIT_SUCCESS);
@@ -57,9 +58,9 @@ int main(int argc, char **argv) {
   // initialize libevent
   event_set_fatal_callback(fatal_error_callback);
 
-  base = event_base_new();
   evutil_secure_rng_init();
 
+  base = event_base_new();
 
   if(! base) {
     perror("Failed to create event base");
