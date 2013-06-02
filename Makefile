@@ -19,7 +19,8 @@ clean:
 	@echo "[CLEAN]"
 	@rm -f rs-serve
 	@rm -f $(OBJECTS)
-	@rm -f *~ src/*~
+	@find -name '*~' -exec rm '{}' ';'
+	@find -name '*.swp' -exec rm '{}' ';'
 
 test: all
 	@test/run.sh
