@@ -106,8 +106,12 @@ void destroy_trie(TrieNode *root) {
   for(i=0;i<len;i++) {
     destroy_trie(root->children[i]);
   }
-  free(root->childkeys);
-  free(root->children);
+  if(root->childkeys) {
+    free(root->childkeys);
+  }
+  if(root->children) {
+    free(root->children);
+  }
   free(root);
 }
 
