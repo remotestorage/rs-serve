@@ -94,4 +94,4 @@ extern uid_t rs_set_uid;
 extern gid_t rs_set_gid;
 #define RS_SET_GID rs_set_gid
 
-#endif
+#endif /* !RS_CONFIG_H */

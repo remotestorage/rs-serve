@@ -36,6 +36,7 @@
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/http.h>
+#include <event2/keyvalq_struct.h>
 
 // libevent doesn't define this for some reason.
 #define HTTP_UNAUTHORIZED 401
@@ -47,6 +48,7 @@
 
 #include "version.h"
 #include "config.h"
+#include "auth_struct.h"
 
 extern magic_t magic_cookie;
 
@@ -85,4 +87,9 @@ void auth_delete(struct evhttp_request *request);
 void webfinger_get_resource(struct evhttp_request *request, const char *address);
 void webfinger_get_hostmeta(struct evhttp_request *request);
 
-#endif
+/* UI */
+
+void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *authorization, const char *redirect_uri);
+void ui_list_authorizations(struct evhttp_request *request);
+
+#endif /* !RS_SERVE_H */
