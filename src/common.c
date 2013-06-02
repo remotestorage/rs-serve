@@ -62,3 +62,28 @@ void add_cors_headers(struct evkeyvalq *headers) {
   evhttp_add_header(headers, "Access-Control-Allow-Headers", RS_ALLOW_HEADERS);
   evhttp_add_header(headers, "Access-Control-Allow-Methods", RS_ALLOW_METHODS);
 }
+
+static char hex_chars[] = "0123456789ABCDEF";
+
+char *generate_token(size_t bytes) {
+  char *raw_buf = malloc(bytes);
+  if(raw_buf == NULL) {
+    perror("malloc() failed for raw token buffer");
+    return NULL;
+  }
+  evutil_secure_rng_get_bytes(raw_buf, bytes);
+  char *encoded_buf = malloc(2 * bytes + 1);
+  if(encoded_buf == NULL) {
+    perror("malloc() failed for encoded token buffer");
+    return NULL;
+  }
+  int i;
+  for(i=0;i<bytes;i++) {
+    encoded_buf[i*2] = hex_chars[(raw_buf[i] & 0xF0) >> 4];
+    encoded_buf[i*2+1] = hex_chars[raw_buf[i] & 0x0F];
+  }
+  encoded_buf[2 * bytes] = 0;
+  free(raw_buf);
+  return encoded_buf;
+}
+

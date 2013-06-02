@@ -58,6 +58,8 @@ int main(int argc, char **argv) {
   event_set_fatal_callback(fatal_error_callback);
 
   base = event_base_new();
+  evutil_secure_rng_init();
+
 
   if(! base) {
     perror("Failed to create event base");

@@ -66,6 +66,7 @@ void add_cors_headers(struct evkeyvalq *headers);
 /* HANDLER */
 void log_debug(char *format, ...);
 
+char *generate_token(size_t bytes);
 void fatal_error_callback(int err);
 void handle_request_callback(struct evhttp_request *request, void *ctx);
 
