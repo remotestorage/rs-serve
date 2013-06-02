@@ -15,6 +15,12 @@ put() {
   echo " -> $?"
 }
 
+delete() {
+  echo -n "DELETE $1"
+  curl -X DELETE -H "Authorization: Bearer static-token-for-now" $1 --data "$2" >/dev/null 2>&1
+  echo " -> $?"
+}
+
 # webfinger requests
 get http://localhost:8181/.well-known/webfinger
 get http://localhost:8181/.well-known/webfinger?resource=acct%3Ame@local.dev
@@ -54,8 +60,22 @@ get http://localhost:8181/storage/foo/
 get http://localhost:8181/storage/foo/bar/
 get http://localhost:8181/storage/foo/bar/a
 get http://localhost:8181/storage/foo/bar/b
-get http://localhost:8181/storage/foo/bar/z
+get http://localhost:8181/storage/foo/bar/c
 get http://localhost:8181/storage/foo/bar/baz/
 get http://localhost:8181/storage/foo/bar/baz/d
 get http://localhost:8181/storage/foo/bar/baz/e
 get http://localhost:8181/storage/foo/bar/baz/f
+# delete some files
+delete http://localhost:8181/storage/foo/bar/a
+delete http://localhost:8181/storage/foo/bar/b
+delete http://localhost:8181/storage/foo/bar/c
+# attempt to get deleted files & dir
+get http://localhost:8181/storage/foo/bar/
+get http://localhost:8181/storage/foo/bar/a
+get http://localhost:8181/storage/foo/bar/b
+get http://localhost:8181/storage/foo/bar/c
+# delete the rest
+delete http://localhost:8181/storage/foo/bar/baz/d
+delete http://localhost:8181/storage/foo/bar/baz/e
+delete http://localhost:8181/storage/foo/bar/baz/f
+

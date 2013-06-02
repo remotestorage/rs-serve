@@ -11,10 +11,6 @@ kill %1
 
 sleep 2
 
-# cleanup
-
-rm -r foo
-
 [ "$LEAKCHECK_SILENT" != "1" ] && less leakcheck.log
 
 exit 0

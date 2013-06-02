@@ -353,5 +353,73 @@ void storage_delete(struct evhttp_request *request) {
   if(! authorize_request(request)) {
     return;
   }
+
+  const char *path = EXTRACT_PATH(request);
+  int path_len = strlen(path);
+
+  if(path[path_len - 1] == '/') {
+    // no DELETE on directories.
+    evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+    return;
+  }
+
+  int disk_path_len;
+  char *disk_path = make_disk_path(path, path_len, &disk_path_len);
+
+  if(disk_path == NULL) {
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+
+  struct stat stat_buf;
+  if(stat(disk_path, &stat_buf) == 0) {
+    // file exists, delete it.
+    unlink(disk_path);
+
+    // remove empty parents
+    char *path_copy = strdup(path);
+    if(path_copy == NULL) {
+      perror("strdup() failed to copy path");
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+      free(disk_path);
+      return;
+    }
+    char *dir_path;
+    int rootdirfd = open(RS_REAL_STORAGE_ROOT, O_RDONLY);
+    if(rootdirfd == -1) {
+      perror("failed to open() storage root");
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+      free(path_copy);
+      free(disk_path);
+      return;
+    }
+    int result;
+    // skip leading slash
+    char *relative_path = path_copy + 1;
+    for(dir_path = dirname(relative_path);
+        dir_path[1] != 0; // reached root
+        dir_path = dirname(dir_path)) {
+      result = unlinkat(rootdirfd, dir_path, AT_REMOVEDIR);
+      if(result != 0) {
+        if(errno == ENOTEMPTY || errno == EEXIST) {
+          // non-empty directory reached
+          break;
+        } else {
+          // other error occured
+          fprintf(stderr, "(while trying to remove %s)\n", dir_path);
+          perror("unlinkat() failed to remove parent directory");
+          evhttp_send_error(request, HTTP_INTERNAL, NULL);
+          free(path_copy);
+          free(disk_path);
+          return;
+        }
+      }
+    }
+    close(rootdirfd);
+    free(path_copy);
+  } else {
+    // file doesn't exist, ignore it.
+  }
   evhttp_send_reply(request, HTTP_OK, NULL, NULL);
+  free(disk_path);
 }
