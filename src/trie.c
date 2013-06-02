@@ -17,12 +17,12 @@
 
 #include "trie.h"
 
-typedef struct trie_node {
+struct trie_node {
   char key; // key == 0 represents end.
   char *childkeys;
   struct trie_node **children;
   void *value;
-} TrieNode;
+};
 
 TrieNode *new_node(char key, void *value) {
   TrieNode *node = malloc(sizeof(TrieNode));
