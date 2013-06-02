@@ -13,6 +13,23 @@
 #ifndef RS_CONFIG_H
 #define RS_CONFIG_H
 
+/**
+ * File: config.h
+ *
+ * This file contains configuration options and other constants that don't
+ * change after the server process has been started. Some of the values are
+ * compile-time constants, others can be changed through command-line flags
+ * or are detected during startup.
+ *
+ * All variables within this file declared at "extern" are defined and
+ * initialized in "config.c", which also evaluates command line arguments.
+ *
+ * All code outside this file and config.c only accesses these values via
+ * their uppercase (RS_*) variant, so if you want to turn any of the mutable
+ * options into compile-time constants, you can do so via this file.
+ *
+ */
+
 // address & port to bind to
 #define RS_ADDRESS NULL
 extern int rs_port;
