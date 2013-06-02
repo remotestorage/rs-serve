@@ -15,8 +15,18 @@ sleep 2
 # webfinger requests
 get http://localhost:8181/.well-known/webfinger
 get http://localhost:8181/.well-known/webfinger?resource=acct%3Ame@local.dev
-# authorization request
+# valid authorization requests
+get 'http://localhost:8181/auth?redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fsome%2Fapp&scope=:rw'
+get 'http://localhost:8181/auth?redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fsome%2Fapp&scope=contacts:rw'
+get 'http://localhost:8181/auth?redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fsome%2Fapp&scope=contacts:rw%20calendar:r'
+# authorization request w/o redirect_uri
+get http://localhost:8181/auth?scope=contacts:rw
+# authorization request w/o scope
 get http://localhost:8181/auth?redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fsome%2Fapp
+# authorization request w/o any params
+get http://localhost:8181/auth?
+# authorization request w/o query
+get http://localhost:8181/auth
 # retrieve some directories
 get http://localhost:8181/storage/ 
 get http://localhost:8181/storage/src/
