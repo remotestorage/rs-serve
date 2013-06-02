@@ -29,6 +29,8 @@
 #include <signal.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <pwd.h>
+#include <grp.h>
 
 // libevent headers
 #include <event2/event.h>

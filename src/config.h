@@ -88,4 +88,10 @@ extern FILE *rs_log_file;
 extern int rs_detach;
 #define RS_DETACH rs_detach
 
+// user ID / group ID to set after binding socket
+extern uid_t rs_set_uid;
+#define RS_SET_UID rs_set_uid
+extern gid_t rs_set_gid;
+#define RS_SET_GID rs_set_gid
+
 #endif

@@ -87,6 +87,24 @@ int main(int argc, char **argv) {
   evhttp_set_allowed_methods(server, EVHTTP_REQ_OPTIONS | EVHTTP_REQ_HEAD | EVHTTP_REQ_GET | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE);
   evhttp_set_gencb(server, handle_request_callback, NULL);
 
+  if(RS_SET_GID) {
+    if(setgid(RS_SET_GID) != 0) {
+      perror("setgid() failed");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  if(RS_SET_UID) {
+    if(setuid(RS_SET_UID) != 0) {
+      perror("setuid() failed");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  if(getuid() == 0) {
+    fprintf(stderr, "warning: running as root is discouraged. Use the --uid or --user option.\n");
+  }
+
   if(RS_DETACH) {
     int child_pid = fork();
     if(child_pid == 0) {

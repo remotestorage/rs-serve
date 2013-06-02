@@ -29,6 +29,14 @@ static void print_help(const char *progname) {
           "                                  process and exit. If you don't use this in\n"
           "                                  combination with the --log-file option, all\n"
           "                                  future output will be lost.\n"
+          "  -u        | --uid             - After binding to the specified port (but\n"
+          "                                  before accepting any connections) set the\n"
+          "                                  user ID of to the given value. This only\n"
+          "                                  works if the process is run as root.\n"
+          "              --user            - Same as --uid option, but specify the user\n"
+          "                                  by name.\n"
+          "  -g        | --gid             - Same as --uid, but setting the group ID.\n"
+          "              --group           - Same as --user, but setting the group.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -52,12 +60,18 @@ int rs_detach = 0;
 char *rs_real_storage_root = NULL;
 int rs_real_storage_root_len = 0;
 FILE *rs_log_file = NULL;
+uid_t rs_set_uid = 0;
+gid_t rs_set_gid = 0;
 
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
   { "hostname", required_argument, 0, 'n' },
   { "root", required_argument, 0, 'r' },
   { "chroot", no_argument, 0, 0 },
+  { "uid", required_argument, 0, 'u' },
+  { "gid", required_argument, 0, 'g' },
+  { "user", required_argument, 0, 0 },
+  { "group", required_argument, 0, 0 },
   // TODO:
   //{ "listen", required_argument, 0, 'l' },
   { "log-file", required_argument, 0, 'f' },
@@ -71,7 +85,7 @@ void init_config(int argc, char **argv) {
   int opt;
   for(;;) {
     int opt_index = 0;
-    opt = getopt_long(argc, argv, "p:n:r:f:dhv", long_options, &opt_index);
+    opt = getopt_long(argc, argv, "p:n:r:f:du:g:hv", long_options, &opt_index);
     if(opt == '?') {
       // invalid option
       exit(EXIT_FAILURE);
@@ -93,6 +107,10 @@ void init_config(int argc, char **argv) {
       }
     } else if(opt == 'd') {
       rs_detach = 1;
+    } else if(opt == 'u') {
+      rs_set_uid = atoi(optarg);
+    } else if(opt == 'g') {
+      rs_set_gid = atoi(optarg);
     } else if(opt == 'h') {
       print_help(argv[0]);
       exit(127);
@@ -103,6 +121,30 @@ void init_config(int argc, char **argv) {
       // long option with no short equivalent
       if(strcmp(long_options[opt_index].name, "chroot") == 0) {
         rs_chroot = 1;
+      } else if(strcmp(long_options[opt_index].name, "user") == 0) {
+        errno = 0;
+        struct passwd *user_entry = getpwnam(optarg);
+        if(user_entry == NULL) {
+          if(errno != 0) {
+            perror("getpwnam() failed");
+          } else {
+            fprintf(stderr, "Failed to find UID for user \"%s\".\n", optarg);
+          }
+          exit(EXIT_FAILURE);
+        }
+        rs_set_uid = user_entry->pw_uid;
+      } else if(strcmp(long_options[opt_index].name, "group") == 0) {
+        errno = 0;
+        struct group *group_entry = getgrnam(optarg);
+        if(group_entry == NULL) {
+          if(errno != 0) {
+            perror("getgrnam() failed");
+          } else {
+            fprintf(stderr, "Failed to find GID for group \"%s\".\n", optarg);
+          }
+          exit(EXIT_FAILURE);
+        }
+        rs_set_gid = group_entry->gr_gid;
       }
     }
   }
