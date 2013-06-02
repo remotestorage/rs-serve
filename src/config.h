@@ -109,7 +109,7 @@ extern gid_t rs_set_gid;
  */
 
 // number of bytes to use for CSRF token
-#define RS_CSRF_TOKEN_SIZE 64
+#define RS_CSRF_TOKEN_SIZE 32
 // number of bytes to use for bearer token
 #define RS_BEARER_TOKEN_SIZE 32
 
@@ -122,5 +122,10 @@ extern gid_t rs_set_gid;
 
 // using hex-encoded tokens for now, so 2 bytes per byte.
 #define TOKEN_BYTESIZE(length) (length * 2)
+
+// maximum number of bytes to POST to /auth
+// (must fit the token, the requested scope, the redirect_uri, plus the parameter
+//  keys for that and the URI encoding overhead)
+#define RS_MAX_AUTH_BODY_SIZE 4096
 
 #endif /* !RS_CONFIG_H */

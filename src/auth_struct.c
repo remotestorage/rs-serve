@@ -11,6 +11,7 @@
  */
 
 #include "rs-serve.h"
+#include "trie.h"
 
 void free_auth_scope(struct rs_auth_scope *scope) {
   if(scope->name) {
@@ -102,3 +103,23 @@ struct rs_authorization *make_authorization(const char *scope_string) {
   return authorization;
 }
 
+TrieNode *auth_token_store;
+
+void init_auth_store(void) {
+  auth_token_store = new_trie();
+  if(auth_token_store == NULL) {
+    perror("Failed to create auth store");
+    exit(EXIT_FAILURE);
+  }
+}
+
+int store_authorization(char *bearer_token, char *scope_string) {
+  struct rs_authorization *auth = make_authorization(scope_string);
+  if(auth == NULL) {
+    return 1;
+  }
+
+  auth->token = bearer_token;
+
+  return 0;
+}

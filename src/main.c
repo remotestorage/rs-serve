@@ -75,6 +75,9 @@ int main(int argc, char **argv) {
   sigaction(SIGTERM, &termaction, NULL);
   sigaction(SIGINT, &termaction, NULL);
 
+  // setup auth token store
+  init_auth_store();
+
   // setup server
   server = evhttp_new(base);
 

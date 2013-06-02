@@ -126,7 +126,7 @@ struct session_data *pop_session(const char *session_id) {
     }
   }
 
-  log_debug("pop_session(\"%s\") -> { csrf_token: \"%s\" })",
+  log_debug("pop_session(\"%s\") -> { csrf_token: \"%s\" }",
             session_id, session_data ? session_data->csrf_token : NULL);
 
   return session_data;

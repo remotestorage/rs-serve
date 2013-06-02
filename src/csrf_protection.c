@@ -29,15 +29,17 @@ int csrf_protection_init(struct evhttp_request *request, char **csrf_token_resul
     return 1;
   }
 
-  struct evkeyvalq *input_headers = evhttp_request_get_input_headers(request);
+  struct evkeyvalq *output_headers = evhttp_request_get_output_headers(request);
 
   char *cookie_value = malloc(TOKEN_BYTESIZE(RS_SESSION_ID_SIZE) + RS_SESSION_ID_NAME_LEN + 2);
 
   sprintf(cookie_value, "%s=%s", RS_SESSION_ID_NAME, session_id);
 
-  evhttp_add_header(input_headers, "Set-Cookie", cookie_value);
+  evhttp_add_header(output_headers, "Set-Cookie", cookie_value);
 
   free(cookie_value);
+
+  *csrf_token_result = csrf_token;
 
   return 0;
 }
@@ -46,5 +48,30 @@ int csrf_protection_verify(struct evhttp_request *request, char *csrf_token) {
   if(csrf_token == NULL) {
     return 1;
   }
-  
+
+  struct evkeyvalq *input_headers = evhttp_request_get_input_headers(request);
+  const char *cookie_value = evhttp_find_header(input_headers, "Cookie");
+
+  if(cookie_value) {
+    char *cookie_start = strstr(cookie_value, RS_SESSION_ID_NAME);
+    if(cookie_start == NULL) {
+      // cookie given, but not the one we're looking for
+      return 1;
+    }
+    if(cookie_start[RS_SESSION_ID_NAME_LEN] != '=') {
+      // something weird is going on.
+      return 1;
+    }
+    struct session_data *data = pop_session(cookie_start + RS_SESSION_ID_NAME_LEN + 1);
+    if(data == NULL) {
+      return 1;
+    } else {
+      int result = strcmp(csrf_token, data->csrf_token);
+      free_session_data(data);
+      return result;
+    }
+  } else {
+    // no cookie given
+    return 1;
+  }
 }

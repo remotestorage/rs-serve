@@ -13,6 +13,7 @@
 #include "rs-serve.h"
 
 static int extract_auth_params(const char *query, char **redirect_uri, char **scope_string, char **csrf_token) {
+  log_debug("PARSE-QUERY(%s)", query);
   struct evkeyvalq params;
   // parse query into params
   if(evhttp_parse_query_str(query, &params) != 0) {
@@ -49,7 +50,7 @@ static int extract_auth_params(const char *query, char **redirect_uri, char **sc
   // decode csrf token (optional)
   if(csrf_token && encoded_csrf_token) {
     *csrf_token = evhttp_uridecode(encoded_csrf_token, 0, NULL);
-    // (presence of CSRF token is checked in csrf_protection_verify)
+    // (presence and validity of CSRF token is checked in csrf_protection_verify)
   }
   evhttp_clear_headers(&params);
   return 0;
@@ -123,19 +124,101 @@ void auth_get(struct evhttp_request *request) {
 }
 
 void auth_post(struct evhttp_request *request) {
+  struct evbuffer *input_buf = evhttp_request_get_input_buffer(request);
+  char *body = malloc(RS_MAX_AUTH_BODY_SIZE + 1);
+  if(body == NULL) {
+    perror("failed to allocate memory for POST body");
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+  int body_bytes = evbuffer_remove(input_buf, body, RS_MAX_AUTH_BODY_SIZE);
+  if(body_bytes == -1) {
+    fprintf(stderr, "Failed to read <= %d bytes from input buffer\n", RS_MAX_AUTH_BODY_SIZE);
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    free(body);
+    return;
+  }
+  body[body_bytes] = 0;
 
-  /* char *redirect_uri, *scope_string, *csrf_token; */
+  char *redirect_uri = NULL, *scope_string = NULL, *csrf_token = NULL;
 
-  /* if(csrf_protection_verify(request, csrf_token) != 0) { */
-  /*   evhttp_send_error(request, HTTP_BADREQUEST, "invalide CSRF token"); */
-  /*   return; */
-  /* } */
+  if(extract_auth_params(body, &redirect_uri, &scope_string, &csrf_token) != 0) {
+    evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+    free(body);
+    return;
+  }
+  free(body);
 
-  // TODO: parse params
-  // TODO: generate token
-  // TODO: store token
-  // TODO: redirect somewhere
+  log_debug("PARAMS: redirect_uri=\"%s\", scope=\"%s\", csrf_token=\"%s\"",
+            redirect_uri, scope_string, csrf_token);
 
+  if(csrf_protection_verify(request, csrf_token) != 0) {
+    evhttp_send_error(request, HTTP_BADREQUEST, "invalid CSRF token");
+    free(redirect_uri);
+    free(scope_string);
+    free(csrf_token);
+    return;
+  }
+
+  free(csrf_token);
+
+  char *bearer_token = generate_token(RS_BEARER_TOKEN_SIZE);
+
+  if(bearer_token == NULL) {
+    free(redirect_uri);
+    free(scope_string);
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+
+  if(store_authorization(bearer_token, scope_string) != 0) {
+    free(bearer_token);
+    free(redirect_uri);
+    free(scope_string);
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+  free(scope_string);
+
+  // construct redirect uri
+  int fragment_size = TOKEN_BYTESIZE(RS_BEARER_TOKEN_SIZE) + 13;
+  char *fragment = malloc(fragment_size + 1);
+  if(fragment == NULL) {
+    perror("failed to allocate memory for fragment");
+    free(redirect_uri);
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+  struct evhttp_uri *uri = evhttp_uri_parse(redirect_uri);
+  sprintf(fragment, "access_token=%s", bearer_token);
+  evhttp_uri_set_fragment(uri, fragment);
+  free(fragment);
+  free(redirect_uri);
+
+  int uri_buf_len = strlen(redirect_uri) + fragment_size + 2;
+  char *uri_buf = malloc(uri_buf_len);
+  if(uri_buf == NULL) {
+    perror("failed to allocate memory for redirect URI buffer");
+    evhttp_uri_free(uri);
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+
+  if(evhttp_uri_join(uri, uri_buf, uri_buf_len) == NULL) {
+    perror("failed to join redirect URI");
+    evhttp_uri_free(uri);
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+  evhttp_uri_free(uri);
+
+  // set Location header
+  struct evkeyvalq *output_headers = evhttp_request_get_output_headers(request);
+  evhttp_add_header(output_headers, "Location", uri_buf);
+  free(uri_buf);
+
+  // redirect
+  evhttp_send_reply(request, HTTP_MOVETEMP, NULL, NULL);
 }
 
 void auth_delete(struct evhttp_request *request) {
