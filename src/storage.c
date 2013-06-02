@@ -204,7 +204,7 @@ void storage_get(struct evhttp_request *request, int sendbody) {
             evhttp_send_reply(request, HTTP_OK, NULL, buf);
           }
           free(entryp);
-          free(dir);
+          closedir(dir);
         }
       } else {
         // HEAD response
@@ -284,7 +284,7 @@ void storage_put(struct evhttp_request *request) {
     char *saveptr = NULL;
     char *dir_name;
     // directory fd for reference
-    int dirfd = open(RS_REAL_STORAGE_ROOT, O_RDONLY);
+    int dirfd = open(RS_REAL_STORAGE_ROOT, O_RDONLY), prevfd;
     if(dirfd == -1) {
       perror("failed to open() storage root");
       evhttp_send_error(request, HTTP_BADREQUEST, NULL);
@@ -312,7 +312,9 @@ void storage_put(struct evhttp_request *request) {
           return;
         }
       }
-      dirfd = openat(dirfd, dir_name, O_RDONLY);
+      prevfd = dirfd;
+      dirfd = openat(prevfd, dir_name, O_RDONLY);
+      close(prevfd);
     }
 
     // dirname() possibly made previous copy unusable
@@ -324,6 +326,7 @@ void storage_put(struct evhttp_request *request) {
                     O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
                     RS_FILE_CREATE_MODE);
     free(path_copy);
+    close(dirfd);
     if(fd == -1) {
       perror("openat() failed");
       evhttp_send_error(request, HTTP_INTERNAL, NULL);
