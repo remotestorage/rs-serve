@@ -1,7 +1,7 @@
 CFLAGS=${shell pkg-config libevent --cflags} -ggdb -Wall
 LDFLAGS=${shell pkg-config libevent --libs} -lmagic
 
-OBJECTS=src/main.o src/common.o src/storage.o src/auth.o src/handler.o src/webfinger.o src/config.o src/ui.o src/auth_struct.o
+OBJECTS=src/main.o src/common.o src/storage.o src/auth.o src/handler.o src/webfinger.o src/config.o src/ui.o src/auth_struct.o src/session.o src/csrf_protection.o
 
 default: all
 

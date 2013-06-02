@@ -12,7 +12,7 @@
 
 #include "rs-serve.h"
 
-static int extract_auth_params(const char *query, char **redirect_uri, char **scope_string) {
+static int extract_auth_params(const char *query, char **redirect_uri, char **scope_string, char **csrf_token) {
   struct evkeyvalq params;
   // parse query into params
   if(evhttp_parse_query_str(query, &params) != 0) {
@@ -22,6 +22,10 @@ static int extract_auth_params(const char *query, char **redirect_uri, char **sc
   // extract the params we care about
   const char *encoded_redirect_uri = evhttp_find_header(&params, "redirect_uri");
   const char *encoded_scope = evhttp_find_header(&params, "scope");
+  const char *encoded_csrf_token = NULL;
+  if(csrf_token) { // (optional)
+    encoded_csrf_token = evhttp_find_header(&params, "csrf_token");
+  }
   // validate required params are given
   if(encoded_redirect_uri == NULL || encoded_scope == NULL) {
     evhttp_clear_headers(&params);
@@ -41,6 +45,11 @@ static int extract_auth_params(const char *query, char **redirect_uri, char **sc
     evhttp_clear_headers(&params);
     free(*redirect_uri);
     return 1;
+  }
+  // decode csrf token (optional)
+  if(csrf_token && encoded_csrf_token) {
+    *csrf_token = evhttp_uridecode(encoded_csrf_token, 0, NULL);
+    // (presence of CSRF token is checked in csrf_protection_verify)
   }
   evhttp_clear_headers(&params);
   return 0;
@@ -77,8 +86,8 @@ void auth_get(struct evhttp_request *request) {
   if(query) {
     // process auth request
 
-    char *redirect_uri, *scope_string;
-    if(extract_auth_params(query, &redirect_uri, &scope_string) != 0) {
+    char *redirect_uri = NULL, *scope_string = NULL;
+    if(extract_auth_params(query, &redirect_uri, &scope_string, NULL) != 0) {
       evhttp_uri_free(uri);
       evhttp_send_error(request, HTTP_BADREQUEST, NULL);
       return;
@@ -92,7 +101,15 @@ void auth_get(struct evhttp_request *request) {
       return;
     }
 
-    ui_prompt_authorization(request, authorization, redirect_uri, scope_string);
+
+    char *csrf_token = NULL;
+    if(csrf_protection_init(request, &csrf_token) != 0) {
+      evhttp_uri_free(uri);
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+      return;
+    }
+
+    ui_prompt_authorization(request, authorization, redirect_uri, scope_string, csrf_token);
 
     free(scope_string);
     free(redirect_uri);
@@ -107,6 +124,14 @@ void auth_get(struct evhttp_request *request) {
 
 void auth_post(struct evhttp_request *request) {
 
+  /* char *redirect_uri, *scope_string, *csrf_token; */
+
+  /* if(csrf_protection_verify(request, csrf_token) != 0) { */
+  /*   evhttp_send_error(request, HTTP_BADREQUEST, "invalide CSRF token"); */
+  /*   return; */
+  /* } */
+
+  // TODO: parse params
   // TODO: generate token
   // TODO: store token
   // TODO: redirect somewhere

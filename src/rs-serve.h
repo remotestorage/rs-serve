@@ -38,8 +38,8 @@
 #include <event2/buffer.h>
 #include <event2/http.h>
 #include <event2/keyvalq_struct.h>
-
 #include <event2/util.h>
+
 // libevent doesn't define this for some reason.
 #define HTTP_UNAUTHORIZED 401
 
@@ -51,9 +51,9 @@
 #include "version.h"
 #include "config.h"
 #include "auth_struct.h"
+#include "session.h"
 
 extern magic_t magic_cookie;
-#include "session.h"
 
 /* CONFIG */
 
@@ -64,12 +64,12 @@ void cleanup_config(void);
 
 void log_starting(void);
 void log_request(struct evhttp_request *request);
+void log_debug(char *format, ...);
 void add_cors_headers(struct evkeyvalq *headers);
+char *generate_token(size_t bytes);
 
 /* HANDLER */
-void log_debug(char *format, ...);
 
-char *generate_token(size_t bytes);
 void fatal_error_callback(int err);
 void handle_request_callback(struct evhttp_request *request, void *ctx);
 
@@ -94,7 +94,12 @@ void webfinger_get_hostmeta(struct evhttp_request *request);
 
 /* UI */
 
-void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *authorization, const char *redirect_uri, const char *scope_string);
+void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *authorization, const char *redirect_uri, const char *scope_string, const char *csrf_token);
 void ui_list_authorizations(struct evhttp_request *request);
+
+/* CSRF PROTECTION */
+
+int csrf_protection_init(struct evhttp_request *request, char **csrf_token_result);
+int csrf_protection_verify(struct evhttp_request *request, char *csrf_token);
 
 #endif /* !RS_SERVE_H */

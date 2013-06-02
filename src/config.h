@@ -94,4 +94,33 @@ extern uid_t rs_set_uid;
 extern gid_t rs_set_gid;
 #define RS_SET_GID rs_set_gid
 
+/*
+ * A NOTE ABOUT TOKEN SIZES:
+ *
+ * The token sizes are given in bytes here. These are the true numbers of random
+ * bytes that will be generated for each token. The actual tokens transferred on the
+ * wire will be encoded though (either hex- or base64-encoded, not sure yet), so will
+ * be larger than those number of bytes.
+ *
+ * Before changing these numbers, keep in mind that while the CSRF token will only
+ * be transferred twice (during authorization GET and POST), the bearer token is
+ * transferred upon *every* request for data in storage.
+ *
+ */
+
+// number of bytes to use for CSRF token
+#define RS_CSRF_TOKEN_SIZE 64
+// number of bytes to use for bearer token
+#define RS_BEARER_TOKEN_SIZE 32
+
+// number of bytes for session ID
+// (stored in cookie, used to associate request with correct CSRF token)
+#define RS_SESSION_ID_SIZE 16
+// cookie name for storing the session ID
+#define RS_SESSION_ID_NAME "rs_serve_session_id"
+#define RS_SESSION_ID_NAME_LEN 19
+
+// using hex-encoded tokens for now, so 2 bytes per byte.
+#define TOKEN_BYTESIZE(length) (length * 2)
+
 #endif /* !RS_CONFIG_H */
