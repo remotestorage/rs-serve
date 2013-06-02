@@ -114,6 +114,12 @@ int main(int argc, char **argv) {
         // if we have a log file, redirect errors to that file as well.
         stderr = RS_LOG_FILE;
       }
+
+      if(event_reinit(base) != 0) {
+        fprintf(stderr, "Failed to re-initialize event_base\n");
+        exit(EXIT_FAILURE);
+      }
+
       return event_base_dispatch(base);
     } else if(child_pid == -1) {
       perror("fork() failed");
