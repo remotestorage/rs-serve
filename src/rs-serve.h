@@ -13,7 +13,7 @@
 #ifndef RS_SERVE_H
 #define RS_SERVE_H
 
-#define _XOPEN_SOURCE_EXTENDED
+#define _GNU_SOURCE
 
 // standard headers
 #include <stdlib.h>
