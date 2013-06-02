@@ -13,7 +13,6 @@
 #include "rs-serve.h"
 
 static int extract_auth_params(const char *query, char **redirect_uri, char **scope_string, char **csrf_token) {
-  log_debug("PARSE-QUERY(%s)", query);
   struct evkeyvalq params;
   // parse query into params
   if(evhttp_parse_query_str(query, &params) != 0) {
@@ -148,9 +147,6 @@ void auth_post(struct evhttp_request *request) {
     return;
   }
   free(body);
-
-  log_debug("PARAMS: redirect_uri=\"%s\", scope=\"%s\", csrf_token=\"%s\"",
-            redirect_uri, scope_string, csrf_token);
 
   if(csrf_protection_verify(request, csrf_token) != 0) {
     evhttp_send_error(request, HTTP_BADREQUEST, "invalid CSRF token");

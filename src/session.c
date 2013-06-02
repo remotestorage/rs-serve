@@ -40,8 +40,6 @@ struct session_store session_store = {
 };
 
 void reset_session_store(void) {
-  log_debug("reset_session_store()");
-
   int i;
   for(i=0;i<session_store.count;i++) {
     free(session_store.ids[i]);
@@ -82,14 +80,11 @@ static int resize_session_store(int inc) {
 
   session_store.ids = ids;
   session_store.datas = datas;
-  log_debug("Resized session store from %d to %d slots",
-            session_store.prealloc, prealloc);
   session_store.prealloc = prealloc;
   return 0;
 }
 
 int push_session(char *session_id, struct session_data *data) {
-  log_debug("push_session(\"%s\", { csrf_token: \"%s\" })", session_id, data->csrf_token);
   if(session_store.count == session_store.prealloc) {
     if(resize_session_store(RS_SESSION_ALLOC_STEP) != 0) {
       return 1;
@@ -125,9 +120,6 @@ struct session_data *pop_session(const char *session_id) {
       fprintf(stderr, "BUG: failed to shrink session store. This should not be possible!\n");
     }
   }
-
-  log_debug("pop_session(\"%s\") -> { csrf_token: \"%s\" }",
-            session_id, session_data ? session_data->csrf_token : NULL);
 
   return session_data;
 }
