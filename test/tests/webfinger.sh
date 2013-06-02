@@ -1,4 +1,3 @@
-# -*- mode: sh -*-
 
 GET /.well-known/webfinger
 assert_response "host request" '{"links":[{"rel":"lrdd","template":"http://test.host:8123/.well-known/webfinger?resource={uri}"}]}'

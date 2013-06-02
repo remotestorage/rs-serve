@@ -6,7 +6,11 @@ mkdir -p tmp/
 sleep 1
 
 GET() {
-  curl http://localhost:8123$1 > tmp/test-response 2>/dev/null
+  curl http://localhost:8123$1 -H "Authorization: Bearer static-token-for-now" > tmp/test-response 2>/dev/null
+}
+
+PUT() {
+  curl http://localhost:8123$1 -X PUT -d "$2" -H "Authorization: Bearer static-token-for-now" >/dev/null 2>&1
 }
 
 assert_response() {
