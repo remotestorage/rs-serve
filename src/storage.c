@@ -124,6 +124,13 @@ void storage_get(struct evhttp_request *request, int sendbody) {
   struct stat stat_buf;
   struct evbuffer *buf = evbuffer_new();
 
+  if(buf == NULL) {
+    perror("evbuffer_new() failed");
+    free(disk_path);
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+
   if(stat(disk_path, &stat_buf) != 0) {
     // stat failed
     if(errno != ENOENT) {
@@ -160,7 +167,6 @@ void storage_get(struct evhttp_request *request, int sendbody) {
             struct stat file_stat_buf;
             int entry_len;
             int first = 1;
-            // FIXME: missing lots of error checking.
             for(;;) {
               readdir_r(dir, entryp, &resultp);
               if(resultp == NULL) {
