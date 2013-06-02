@@ -45,7 +45,17 @@ void log_request(struct evhttp_request *request) {
          evhttp_request_get_uri(request),
          evhttp_request_get_response_code(request));
   fflush(RS_LOG_FILE);
-} 
+}
+
+void log_debug(char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+  char *timestamp = time_now();
+  char new_format[strlen(timestamp) + strlen(format) + 13];
+  sprintf(new_format, "[%s] [DEBUG] %s\n", timestamp, format);
+  vfprintf(RS_LOG_FILE, new_format, ap);
+  va_end(ap);
+}
 
 void add_cors_headers(struct evkeyvalq *headers) {
   evhttp_add_header(headers, "Access-Control-Allow-Origin", RS_ALLOW_ORIGIN);
