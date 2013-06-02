@@ -63,4 +63,8 @@ extern int rs_real_storage_root_len;
 #define RS_REAL_STORAGE_ROOT rs_real_storage_root
 #define RS_REAL_STORAGE_ROOT_LEN rs_real_storage_root_len
 
+// log file
+extern FILE *rs_log_file;
+#define RS_LOG_FILE rs_log_file
+
 #endif

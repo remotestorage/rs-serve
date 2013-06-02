@@ -25,7 +25,7 @@ void log_starting() {
   if(! address) {
     address = "0.0.0.0";
   }
-  printf("[%s] Serving from \"%s\" on %s:%d\n", time_now(), RS_STORAGE_ROOT, address, RS_PORT);
+  fprintf(RS_LOG_FILE, "[%s] Serving from \"%s\" on %s:%d\n", time_now(), RS_STORAGE_ROOT, address, RS_PORT);
 }
 
 void log_request(struct evhttp_request *request) {
@@ -40,7 +40,7 @@ void log_request(struct evhttp_request *request) {
   default: method = "(unknown)"; break;
   }
   
-  printf("[%s] %s %s -> %d\n", time_now(), method,
+  fprintf(RS_LOG_FILE, "[%s] %s %s -> %d\n", time_now(), method,
          evhttp_request_get_uri(request),
          evhttp_request_get_response_code(request));
 } 

@@ -22,7 +22,8 @@ static void print_help(const char *progname) {
           "  -p <port> | --port=<port>     - Bind to given port (default: 80).\n"
           "  -n <name> | --hostname=<name> - Set hostname (defaults to local.dev)\n"
           "  -r <root> | --root=<root>     - Root directory to serve (defaults to cwd)\n"
-          "  --chroot                      - chroot() to root directory before serving any files\n"
+          "              --chroot          - chroot() to root directory before serving any files\n"
+          "  -f <file> | --log-file=<file> - Log to given file (defaults to stdout)\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -38,12 +39,13 @@ static void print_version() {
 
 int rs_port = 80;
 char *rs_hostname = "local.dev";
-char *rs_storage_root;
-int rs_storage_root_len;
+char *rs_storage_root = NULL;
+int rs_storage_root_len = 0;
 int rs_chroot = 0;
 // equivalents of rs_storage_root(_len), but rs_chroot aware
-char *rs_real_storage_root;
-int rs_real_storage_root_len;
+char *rs_real_storage_root = NULL;
+int rs_real_storage_root_len = 0;
+FILE *rs_log_file = NULL;
 
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
@@ -52,7 +54,7 @@ static struct option long_options[] = {
   { "chroot", no_argument, 0, 0 },
   // TODO:
   //{ "listen", required_argument, 0, 'l' },
-  //{ "log-file", required_argument, 0, 'f' },
+  { "log-file", required_argument, 0, 'f' },
   //{ "background", no_argument, 0, 'b' },
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
@@ -77,6 +79,12 @@ void init_config(int argc, char **argv) {
     } else if(opt == 'r') {
       rs_storage_root = strdup(optarg);
       rs_storage_root_len = strlen(rs_storage_root);
+    } else if(opt == 'f') {
+      rs_log_file = fopen(optarg, "a");
+      if(rs_log_file == NULL) {
+        perror("Failed to open log file");
+        exit(EXIT_FAILURE);
+      }
     } else if(opt == 'h') {
       print_help(argv[0]);
       exit(EXIT_SUCCESS);
@@ -108,6 +116,10 @@ void init_config(int argc, char **argv) {
   } else {
     rs_real_storage_root = rs_storage_root;
     rs_real_storage_root_len = rs_storage_root_len;
+  }
+
+  if(rs_log_file == NULL) {
+    rs_log_file = stdout;
   }
 
 }
