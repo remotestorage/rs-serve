@@ -31,6 +31,7 @@
 #include <libgen.h>
 #include <pwd.h>
 #include <grp.h>
+#include <stdarg.h>
 
 // libevent headers
 #include <event2/event.h>
@@ -38,6 +39,7 @@
 #include <event2/http.h>
 #include <event2/keyvalq_struct.h>
 
+#include <event2/util.h>
 // libevent doesn't define this for some reason.
 #define HTTP_UNAUTHORIZED 401
 
@@ -51,6 +53,7 @@
 #include "auth_struct.h"
 
 extern magic_t magic_cookie;
+#include "session.h"
 
 /* CONFIG */
 
