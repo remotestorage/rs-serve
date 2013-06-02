@@ -95,10 +95,10 @@ void init_config(int argc, char **argv) {
       rs_detach = 1;
     } else if(opt == 'h') {
       print_help(argv[0]);
-      exit(EXIT_SUCCESS);
+      exit(127);
     } else if(opt == 'v') {
       print_version();
-      exit(EXIT_SUCCESS);
+      exit(127);
     } else if(opt == 0) {
       // long option with no short equivalent
       if(strcmp(long_options[opt_index].name, "chroot") == 0) {
