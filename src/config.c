@@ -20,10 +20,15 @@ static void print_help(const char *progname) {
           "  -h        | --help            - Display this text and exit.\n"
           "  -v        | --version         - Print program version and exit.\n"
           "  -p <port> | --port=<port>     - Bind to given port (default: 80).\n"
-          "  -n <name> | --hostname=<name> - Set hostname (defaults to local.dev)\n"
-          "  -r <root> | --root=<root>     - Root directory to serve (defaults to cwd)\n"
-          "              --chroot          - chroot() to root directory before serving any files\n"
+          "  -n <name> | --hostname=<name> - Set hostname (defaults to local.dev).\n"
+          "  -r <root> | --root=<root>     - Root directory to serve (defaults to cwd).\n"
+          "              --chroot          - chroot() to root directory before serving any\n"
+          "                                  files.\n"
           "  -f <file> | --log-file=<file> - Log to given file (defaults to stdout)\n"
+          "  -d        | --detach          - After starting the server, detach server\n"
+          "                                  process and exit. If you don't use this in\n"
+          "                                  combination with the --log-file option, all\n"
+          "                                  future output will be lost.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -42,6 +47,7 @@ char *rs_hostname = "local.dev";
 char *rs_storage_root = NULL;
 int rs_storage_root_len = 0;
 int rs_chroot = 0;
+int rs_detach = 0;
 // equivalents of rs_storage_root(_len), but rs_chroot aware
 char *rs_real_storage_root = NULL;
 int rs_real_storage_root_len = 0;
@@ -55,7 +61,7 @@ static struct option long_options[] = {
   // TODO:
   //{ "listen", required_argument, 0, 'l' },
   { "log-file", required_argument, 0, 'f' },
-  //{ "background", no_argument, 0, 'b' },
+  { "detach", no_argument, 0, 'd' },
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
   { 0, 0, 0, 0 }
@@ -65,7 +71,7 @@ void init_config(int argc, char **argv) {
   int opt;
   for(;;) {
     int opt_index = 0;
-    opt = getopt_long(argc, argv, "p:n:r:hv", long_options, &opt_index);
+    opt = getopt_long(argc, argv, "p:n:r:f:dhv", long_options, &opt_index);
     if(opt == '?') {
       // invalid option
       exit(EXIT_FAILURE);
@@ -85,6 +91,8 @@ void init_config(int argc, char **argv) {
         perror("Failed to open log file");
         exit(EXIT_FAILURE);
       }
+    } else if(opt == 'd') {
+      rs_detach = 1;
     } else if(opt == 'h') {
       print_help(argv[0]);
       exit(EXIT_SUCCESS);

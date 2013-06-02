@@ -84,4 +84,8 @@ extern int rs_real_storage_root_len;
 extern FILE *rs_log_file;
 #define RS_LOG_FILE rs_log_file
 
+// detach option
+extern int rs_detach;
+#define RS_DETACH rs_detach
+
 #endif

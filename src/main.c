@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 
   // change root if requested
   if(RS_CHROOT) {
-    if(chroot(rs_storage_root) != 0) {
+    if(chroot(RS_STORAGE_ROOT) != 0) {
       perror("chroot() failed");
       exit(EXIT_FAILURE);
     }
@@ -87,5 +87,28 @@ int main(int argc, char **argv) {
   evhttp_set_allowed_methods(server, EVHTTP_REQ_OPTIONS | EVHTTP_REQ_HEAD | EVHTTP_REQ_GET | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE);
   evhttp_set_gencb(server, handle_request_callback, NULL);
 
-  return event_base_dispatch(base);
+  if(RS_DETACH) {
+    int child_pid = fork();
+    if(child_pid == 0) {
+      freopen("/dev/null", "w", stdout);
+      freopen("/dev/null", "w", stderr);
+      if(RS_LOG_FILE != stdout) {
+        // if we have a log file, redirect errors to that file as well.
+        stderr = RS_LOG_FILE;
+      }
+      return event_base_dispatch(base);
+    } else if(child_pid == -1) {
+      perror("fork() failed");
+      exit(EXIT_FAILURE);
+    } else {
+      if(RS_LOG_FILE == stdout) {
+        fprintf(stderr, "warning: --log-file option not given, future output will be lost.\n");
+      }
+      fclose(stdout);
+      fclose(stderr);
+      _exit(0);
+    }
+  } else {
+    return event_base_dispatch(base);
+  }
 }
