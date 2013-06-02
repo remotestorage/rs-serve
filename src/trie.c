@@ -40,7 +40,7 @@ TrieNode *new_trie() {
 }
 
 int append(TrieNode *parent, TrieNode *child) {
-  int len = strlen(parent->childkeys);
+  int len = parent->childkeys ? strlen(parent->childkeys) : 0;
   parent->children = realloc(parent->children, (len + 1) * sizeof(TrieNode*));
   if(parent->children == NULL) {
     return -1;
@@ -98,6 +98,17 @@ void *trie_search(TrieNode *parent, const char *key) {
   } else {
     return parent->value;
   }
+}
+
+void destroy_trie(TrieNode *root) {
+  int len = root->childkeys ? strlen(root->childkeys) : 0;
+  int i;
+  for(i=0;i<len;i++) {
+    destroy_trie(root->children[i]);
+  }
+  free(root->childkeys);
+  free(root->children);
+  free(root);
 }
 
 #ifdef DEBUG_TRIE

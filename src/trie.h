@@ -27,6 +27,13 @@ typedef struct trie_node TrieNode;
 TrieNode *new_trie();
 
 /**
+ * destroy_trie()
+ *
+ * Destroy given Trie and free() all it's associated memory.
+ */
+void destroy_trie(TrieNode *root);
+
+/**
  * trie_insert()
  *
  * Inserts given `value' for given `key' in the Trie identified by `parent'.

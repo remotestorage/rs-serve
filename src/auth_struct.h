@@ -25,6 +25,7 @@ struct rs_authorization {
 };
 
 void init_auth_store(void);
+void cleanup_auth_store(void);
 int store_authorization(char *bearer_token, char *scope_string);
 
 void free_auth_scope(struct rs_auth_scope *scope);

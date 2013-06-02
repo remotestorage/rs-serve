@@ -24,6 +24,7 @@ void cleanup_handler(int signum) {
   event_base_free(base);
   magic_close(magic_cookie);
   reset_session_store();
+  cleanup_auth_store();
   cleanup_config();
   fprintf(stderr, "Exiting.\n");
   exit(EXIT_SUCCESS);

@@ -113,6 +113,10 @@ void init_auth_store(void) {
   }
 }
 
+void cleanup_auth_store(void) {
+  destroy_trie(auth_token_store);
+}
+
 int store_authorization(char *bearer_token, char *scope_string) {
   struct rs_authorization *auth = make_authorization(scope_string);
   if(auth == NULL) {
