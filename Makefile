@@ -1,4 +1,4 @@
-CFLAGS=${shell pkg-config libevent --cflags} -ggdb -Wall
+CFLAGS=${shell pkg-config libevent --cflags} -ggdb -Wall -Werror --std=c99 -pedantic
 LDFLAGS=${shell pkg-config libevent --libs} -lmagic
 
 OBJECTS=src/main.o src/common.o src/storage.o src/auth.o src/handler.o src/webfinger.o src/config.o src/ui.o src/auth_struct.o src/session.o src/csrf_protection.o src/trie.o src/auth_store.o
