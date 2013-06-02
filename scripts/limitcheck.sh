@@ -6,6 +6,8 @@
 ## it doesn't work for me though. Setting $LIMIT < 5000 causes the shell process
 ## to run out of memory, but any higher number doesn't cause rs-serve to run out
 ## of memory.
+## In either case, this probably only works anyway if /proc/sys/vm/overcommit_memory
+## is adjusted, so requires root privileges.
 
 LIMIT=$1
 echo "Running with ulimit -v $LIMIT"
