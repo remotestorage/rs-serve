@@ -65,3 +65,40 @@ void free_auth(struct rs_authorization *auth) {
   }
   free(auth);
 }
+
+struct rs_authorization *make_authorization(const char *scope_string) {
+  // create authorization structure
+  struct rs_authorization *authorization = malloc(sizeof(struct rs_authorization));
+  if(authorization == NULL) {
+    perror("malloc() failed to allocate new authorization");
+    return NULL;
+  }
+  memset(authorization, 0, sizeof(struct rs_authorization));
+
+  // parse scope parameter
+  char *scope_copy = strdup(scope_string);
+  if(scope_copy == NULL) {
+    perror("strdup() failed to copy scope parameter");
+    free_auth(authorization);
+    return NULL;
+  }
+  char *scope_saveptr = NULL;
+  char *scope_part;
+  struct rs_auth_scope *last_scope = NULL;
+  for(scope_part = strtok_r(scope_copy, " ", &scope_saveptr);
+      scope_part != NULL;
+      scope_part = strtok_r(NULL, " ", &scope_saveptr)) {
+    authorization->scope = make_auth_scope(scope_part, last_scope);
+    if(authorization->scope == NULL) {
+      free_auth(authorization);
+      if(last_scope) {
+        free_auth_scope(last_scope);
+      }
+      return NULL;
+    }
+    last_scope = authorization->scope;
+  }
+  free(scope_copy);
+  return authorization;
+}
+

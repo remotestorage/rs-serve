@@ -12,6 +12,40 @@
 
 #include "rs-serve.h"
 
+static int extract_auth_params(const char *query, char **redirect_uri, char **scope_string) {
+  struct evkeyvalq params;
+  // parse query into params
+  if(evhttp_parse_query_str(query, &params) != 0) {
+    perror("evhttp_parse_query_str() failed to parse query string");
+    return 1;
+  }
+  // extract the params we care about
+  const char *encoded_redirect_uri = evhttp_find_header(&params, "redirect_uri");
+  const char *encoded_scope = evhttp_find_header(&params, "scope");
+  // validate required params are given
+  if(encoded_redirect_uri == NULL || encoded_scope == NULL) {
+    evhttp_clear_headers(&params);
+    return 1;
+  }
+  // decode redirect uri
+  *redirect_uri = evhttp_uridecode(encoded_redirect_uri, 0, NULL);
+  if(*redirect_uri == NULL) {
+    perror("evhttp_uridecode() failed for redirect_uri");
+    evhttp_clear_headers(&params);
+    return 1;
+  }
+  // decode scope
+  *scope_string = evhttp_uridecode(encoded_scope, 0, NULL);
+  if(*scope_string == NULL) {
+    perror("evhttp_uridecode() failed for scope");
+    evhttp_clear_headers(&params);
+    free(*redirect_uri);
+    return 1;
+  }
+  evhttp_clear_headers(&params);
+  return 0;
+}
+
 int authorize_request(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_input_headers(request);
   const char *auth_header = evhttp_find_header(headers, "Authorization");
@@ -43,99 +77,24 @@ void auth_get(struct evhttp_request *request) {
   if(query) {
     // process auth request
 
-    struct evkeyvalq params;
-
-    // parse query into params
-    if(evhttp_parse_query_str(query, &params) != 0) {
-      perror("evhttp_parse_query_str() failed to parse query string");
+    char *redirect_uri, *scope_string;
+    if(extract_auth_params(query, &redirect_uri, &scope_string) != 0) {
       evhttp_uri_free(uri);
-      evhttp_send_error(request, HTTP_INTERNAL, NULL);
-      return;
-    }
-
-    // extract the params we care about
-    const char *encoded_redirect_uri = evhttp_find_header(&params, "redirect_uri");
-    const char *encoded_scope = evhttp_find_header(&params, "scope");
-
-    // validate required params are given
-    if(encoded_redirect_uri == NULL || encoded_scope == NULL) {
       evhttp_send_error(request, HTTP_BADREQUEST, NULL);
-      evhttp_uri_free(uri);
-      evhttp_clear_headers(&params);
       return;
     }
 
-    // decode redirect uri
-    char *redirect_uri = evhttp_uridecode(encoded_redirect_uri, 0, NULL);
-    if(redirect_uri == NULL) {
-      perror("evhttp_uridecode() failed for redirect_uri");
-      evhttp_send_error(request, HTTP_INTERNAL, NULL);
-      evhttp_uri_free(uri);
-      evhttp_clear_headers(&params);
-      return;
-    }
-    // decode scope
-    char *scope = evhttp_uridecode(encoded_scope, 0, NULL);
-    if(scope == NULL) {
-      perror("evhttp_uridecode() failed for scope");
-      evhttp_send_error(request, HTTP_INTERNAL, NULL);
-      evhttp_uri_free(uri);
-      evhttp_clear_headers(&params);
-      free(redirect_uri);
-      return;
-    }
+    struct rs_authorization *authorization = make_authorization(scope_string);
 
-    // create authorization structure
-    struct rs_authorization *authorization = malloc(sizeof(struct rs_authorization));
     if(authorization == NULL) {
-      perror("malloc() failed to allocate new authorization");
-      evhttp_send_error(request, HTTP_INTERNAL, NULL);
-      free(scope);
-      free(redirect_uri);
       evhttp_uri_free(uri);
-      evhttp_clear_headers(&params);
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
       return;
     }
-    memset(authorization, 0, sizeof(struct rs_authorization));
 
-    // parse scope parameter
-    char *scope_copy = strdup(scope);
-    if(scope_copy == NULL) {
-      perror("strdup() failed to copy scope parameter");
-      evhttp_send_error(request, HTTP_INTERNAL, NULL);
-      free(scope);
-      free(redirect_uri);
-      evhttp_uri_free(uri);
-      evhttp_clear_headers(&params);
-      return;
-    }
-    char *scope_saveptr = NULL;
-    char *scope_part;
-    struct rs_auth_scope *last_scope = NULL;
-    for(scope_part = strtok_r(scope_copy, " ", &scope_saveptr);
-        scope_part != NULL;
-        scope_part = strtok_r(NULL, " ", &scope_saveptr)) {
-      authorization->scope = make_auth_scope(scope_part, last_scope);
-      if(authorization->scope == NULL) {
-        evhttp_send_error(request, HTTP_INTERNAL, NULL);
-        free(scope);
-        free(redirect_uri);
-        free_auth(authorization);
-        if(last_scope) {
-          free_auth_scope(last_scope);
-        }
-        evhttp_uri_free(uri);
-        evhttp_clear_headers(&params);
-        return;
-      }
-      last_scope = authorization->scope;
-    }
-    free(scope_copy);
+    ui_prompt_authorization(request, authorization, redirect_uri, scope_string);
 
-    ui_prompt_authorization(request, authorization, redirect_uri, scope);
-
-    evhttp_clear_headers(&params);
-    free(scope);
+    free(scope_string);
     free(redirect_uri);
     free_auth(authorization);
   } else {
