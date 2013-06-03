@@ -15,6 +15,8 @@
 
 struct session_data {
   char *csrf_token;
+  time_t created; // (this could be removed, it's only used for dumping state info)
+  struct event *timer;
 };
 
 struct session_data *make_session_data(char *csrf_token);
@@ -22,5 +24,6 @@ void free_session_data(struct session_data *session_data);
 int push_session(char *session_id, struct session_data *data);
 struct session_data *pop_session(const char *session_id);
 void reset_session_store(void);
+void print_session_info(FILE *fp);
 
 #endif
