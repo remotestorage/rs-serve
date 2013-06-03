@@ -22,6 +22,10 @@ clean:
 	@find -name '*~' -exec rm '{}' ';'
 	@find -name '*.swp' -exec rm '{}' ';'
 
+install: rs-serve
+	@echo [INSTALL] rs-serve
+	@install -s rs-serve /usr/bin
+
 test: all
 	@test/run.sh
 
