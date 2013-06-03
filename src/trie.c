@@ -161,16 +161,22 @@ void dump_tree(TrieNode *root) {
   _dump_tree(root, 0);
 }
 
+void print_line(void *value, void *userdata) {
+  printf("PRINT LINE: %s\n", (char*) value);
+}
+
 int main(int argc, char **argv) {
-  TrieNode *root = new_node(0, NULL);
-  insert(root, "/foo/bar", "baz");
-  insert(root, "/foo/blubb", "bla");
-  insert(root, "/asdf/dassf/fdas", "blubb");
-  insert(root, "/asdd/f/dsa/s", "fasd");
+  TrieNode *root = new_trie();
+  trie_insert(root, "/foo/bar", "baz");
+  trie_insert(root, "/foo/blubb", "bla");
+  trie_insert(root, "/asdf/dassf/fdas", "blubb");
+  trie_insert(root, "/asdd/f/dsa/s", "fasd");
 
-  dump_tree(root);
+  //dump_tree(root);
 
-  char *result = (char*)search(root, "/asdf/dassf/fdas");
+  iterate_trie(root, print_line, NULL);
+
+  char *result = (char*)trie_search(root, "/asdf/dassf/fdas");
 
   fprintf(stderr, "RESULT: %s\n", result);
   return 0;
