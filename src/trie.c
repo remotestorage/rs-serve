@@ -41,6 +41,7 @@ TrieNode *new_node(char key, void *value) {
     free(node);
     return NULL;
   }
+  *node->childkeys = 0;
   return node;
 }
 
