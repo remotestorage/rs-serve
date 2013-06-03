@@ -35,6 +35,10 @@
 extern int rs_port;
 #define RS_PORT rs_port
 
+// (exception: rs_event_base is defined in main.c)
+extern struct event_base *rs_event_base;
+#define RS_EVENT_BASE rs_event_base
+
 // only used for webfinger result at the moment
 #define RS_SCHEME "http"
 extern char *rs_hostname;

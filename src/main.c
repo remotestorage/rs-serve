@@ -14,14 +14,14 @@
 
 magic_t magic_cookie;
 
-struct event_base *base;
+struct event_base *rs_event_base;
 struct evhttp *server;
 
 void cleanup_handler(int signum) {
   fprintf(stderr, "\"%s\" signal caught, cleaning up...\n", strsignal(signum));
-  event_base_loopbreak(base);
+  event_base_loopbreak(RS_EVENT_BASE);
   evhttp_free(server);
-  event_base_free(base);
+  event_base_free(RS_EVENT_BASE);
   magic_close(magic_cookie);
   reset_session_store();
   cleanup_auth_store();
@@ -33,7 +33,8 @@ void cleanup_handler(int signum) {
 void dump_state_handler(int signum) {
   log_dump_state_start();
   print_authorizations(RS_LOG_FILE);
-  event_base_dump_events(base, RS_LOG_FILE);
+  print_session_info(RS_LOG_FILE);
+  event_base_dump_events(RS_EVENT_BASE, RS_LOG_FILE);
   log_dump_state_end();
 }
 
@@ -76,9 +77,9 @@ int main(int argc, char **argv) {
 
   evutil_secure_rng_init();
 
-  base = event_base_new();
+  RS_EVENT_BASE = event_base_new();
 
-  if(! base) {
+  if(! RS_EVENT_BASE) {
     perror("Failed to create event base");
     exit(EXIT_FAILURE);
   }
@@ -105,7 +106,7 @@ int main(int argc, char **argv) {
   init_auth_store();
 
   // setup server
-  server = evhttp_new(base);
+  server = evhttp_new(RS_EVENT_BASE);
 
   if(! server) {
     perror("Failed to create server");
@@ -149,14 +150,14 @@ int main(int argc, char **argv) {
         stderr = RS_LOG_FILE;
       }
 
-      if(event_reinit(base) != 0) {
+      if(event_reinit(RS_EVENT_BASE) != 0) {
         fprintf(stderr, "Failed to re-initialize event_base\n");
         exit(EXIT_FAILURE);
       }
 
       write_pid();
 
-      return event_base_dispatch(base);
+      return event_base_dispatch(RS_EVENT_BASE);
     } else if(child_pid == -1) {
       perror("fork() failed");
       exit(EXIT_FAILURE);
@@ -172,6 +173,6 @@ int main(int argc, char **argv) {
 
     write_pid();
 
-    return event_base_dispatch(base);
+    return event_base_dispatch(RS_EVENT_BASE);
   }
 }
