@@ -32,6 +32,15 @@ TrieNode *new_node(char key, void *value) {
   memset(node, 0, sizeof(TrieNode));
   node->key = key;
   node->value = value;
+  if((node->childkeys = malloc(1)) == NULL) {
+    free(node);
+    return NULL;
+  }
+  if((node->children = malloc(sizeof(TrieNode*))) == NULL) {
+    free(node->childkeys);
+    free(node);
+    return NULL;
+  }
   return node;
 }
 
@@ -40,7 +49,7 @@ TrieNode *new_trie() {
 }
 
 int append(TrieNode *parent, TrieNode *child) {
-  int len = parent->childkeys ? strlen(parent->childkeys) : 0;
+  int len = strlen(parent->childkeys);
   parent->children = realloc(parent->children, (len + 1) * sizeof(TrieNode*));
   if(parent->children == NULL) {
     return -1;
@@ -101,7 +110,7 @@ void *trie_search(TrieNode *parent, const char *key) {
 }
 
 void destroy_trie(TrieNode *root) {
-  int len = root->childkeys ? strlen(root->childkeys) : 0;
+  int len = strlen(root->childkeys);
   int i;
   for(i=0;i<len;i++) {
     destroy_trie(root->children[i]);
