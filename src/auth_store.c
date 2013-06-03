@@ -13,7 +13,7 @@
 #include "rs-serve.h"
 #include "trie.h"
 
-TrieNode *auth_token_store;
+TrieNode *auth_token_store = NULL;
 
 void init_auth_store(void) {
   auth_token_store = new_trie();
@@ -25,6 +25,7 @@ void init_auth_store(void) {
 
 void cleanup_auth_store(void) {
   destroy_trie(auth_token_store);
+  auth_token_store = NULL;
 }
 
 int store_authorization(char *bearer_token, char *scope_string) {
