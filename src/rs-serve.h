@@ -42,6 +42,7 @@
 
 // libevent doesn't define this for some reason.
 #define HTTP_UNAUTHORIZED 401
+#define HTTP_FORBIDDEN 403
 
 // libmagic headers
 #include <magic.h>
@@ -83,7 +84,7 @@ void storage_delete(struct evhttp_request *request);
 
 /* AUTH */
 
-int authorize_request(struct evhttp_request *request);
+int authorize_request(struct evhttp_request *request, const char *scope, int write);
 void auth_get(struct evhttp_request *request);
 void auth_post(struct evhttp_request *request);
 void auth_delete(struct evhttp_request *request);

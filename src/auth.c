@@ -55,23 +55,44 @@ static int extract_auth_params(const char *query, char **redirect_uri, char **sc
   return 0;
 }
 
-int authorize_request(struct evhttp_request *request) {
+int authorize_request(struct evhttp_request *request, const char *required_scope, int write) {
   struct evkeyvalq *headers = evhttp_request_get_input_headers(request);
   const char *auth_header = evhttp_find_header(headers, "Authorization");
 
   // TODO: check token & scope
 
-  if(auth_header && strncmp(auth_header, "Bearer ", 7) != 0) {
+  if(auth_header == NULL) {
+    evhttp_send_error(request, HTTP_UNAUTHORIZED, NULL);
+    return -1;
+  }
+
+  if(strncmp(auth_header, "Bearer ", 7) != 0) {
     // invalid Authorization header (ie doesn't start with "Bearer ")
     evhttp_send_error(request, HTTP_BADREQUEST, NULL);
-    return 0;
-  } else if(auth_header && strcmp(auth_header + 7, RS_TOKEN) == 0) {
-    // Authorization header present and token correct
-    return 1;
+    return -1;
   } else {
-    // no Authorization header or invalid token
-    evhttp_send_error(request, HTTP_UNAUTHORIZED, NULL);
-    return 0;
+    // valid Authorization header, lookup token
+    const char *presented_token = auth_header + 7;
+    log_debug("got token \"%s\"", presented_token);
+    struct rs_authorization *auth = find_authorization(presented_token);
+    if(auth) {
+      log_debug("found authorization.");
+      // valid token, check scope & mode
+      struct rs_auth_scope *scope = find_auth_scope(auth, required_scope);
+      if(scope && scope->write >= write) {
+        // scope is allowed and satisfies mode
+        return 0;
+      } else {
+        // scope is not part of authorization or doesn't satisfy mode
+        evhttp_send_error(request, HTTP_FORBIDDEN, NULL);
+        return -1;
+      }
+    } else {
+      log_debug("found no authorization.");
+      // invalid token presented
+      evhttp_send_error(request, HTTP_UNAUTHORIZED, NULL);
+      return -1;
+    }
   }
 }
 

@@ -28,5 +28,6 @@ void free_auth_scope(struct rs_auth_scope *scope);
 struct rs_auth_scope *make_auth_scope(const char *scope_string, struct rs_auth_scope *next);
 void free_auth(struct rs_authorization *auth);
 struct rs_authorization *make_authorization(const char *scope_string);
+struct rs_auth_scope *find_auth_scope(struct rs_authorization *auth, const char *scope_name);
 
 #endif /* !RS_AUTH_STRUCT_H */

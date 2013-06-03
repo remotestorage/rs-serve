@@ -17,16 +17,19 @@
 /**
  * validate_path(request, path)
  *
- * Protect from directory traversal attacks.
+ * Protect from directory traversal attacks and verify that path begins with a
+ * forward slash ('/').
  *
- * Returns 1 when path is valid, else returns 0 and sends a BADREQUEST response.
+ * Returns zero when path is valid, else returns -1 and sends a BADREQUEST response.
  */
 static int validate_path(struct evhttp_request *request, const char *path) {
-  if(strstr(path, "../") == NULL) {
-    return 1;
+  if(*path != '/') {
+    return 0;
+  } else if(strstr(path, "../") == NULL) {
+    return 0;
   } else {
     evhttp_send_error(request, HTTP_BADREQUEST, NULL);
-    return 0;
+    return -1;
   }
 }
 
@@ -39,6 +42,22 @@ static char *make_disk_path(const char *path, int path_len, int *disk_path_len) 
   }
   sprintf(disk_path, "%s%s", RS_REAL_STORAGE_ROOT, path);
   return disk_path;
+}
+
+static char *extract_scope(const char *path) {
+  char *scope = NULL;
+  int i;
+  for(i=1; // skip initial slash
+      path[i] != 0 && path[i] != '/';
+      i++);
+  if(path[i] != '/') {
+    // file directly below root requested, root scope required.
+    scope = strdup("");
+  } else {
+    scope = strndup(path + 1, i - 1);
+  }
+  log_debug("extracted scope \"%s\" from path \"%s\"", scope, path);
+  return scope;
 }
 
 /**
@@ -103,15 +122,24 @@ void storage_get(struct evhttp_request *request, int sendbody) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
 
-  if(! authorize_request(request)) {
-    return;
-  }
   const char *path = EXTRACT_PATH(request);
   size_t path_len = strlen(path);
 
-  if(! validate_path(request, path)) {
+  if(validate_path(request, path) != 0) {
     return;
   }
+
+  char *scope = extract_scope(path);
+  if(scope == NULL) {
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+
+  if(authorize_request(request, scope, 0) != 0) {
+    free(scope);
+    return;
+  }
+  free(scope);
 
   int disk_path_len;
   char *disk_path = make_disk_path(path, path_len, &disk_path_len);
@@ -268,15 +296,24 @@ void storage_put(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
 
-  if(! authorize_request(request)) {
+  const char *path = EXTRACT_PATH(request);
+  int path_len = strlen(path);
+
+  if(validate_path(request, path) != 0) {
     return;
   }
 
-  const char *path = EXTRACT_PATH(request);
-  int path_len = strlen(path);
-  if(! validate_path(request, path)) {
+  char *scope = extract_scope(path);
+  if(scope == NULL) {
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
     return;
   }
+
+  if(authorize_request(request, scope, 1) != 0) {
+    free(scope);
+    return;
+  }
+  free(scope);
 
   if(path[path_len - 1] == '/') {
     // no PUT on directories.
@@ -350,12 +387,25 @@ void storage_put(struct evhttp_request *request) {
 void storage_delete(struct evhttp_request *request) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);
-  if(! authorize_request(request)) {
-    return;
-  }
 
   const char *path = EXTRACT_PATH(request);
   int path_len = strlen(path);
+
+  if(validate_path(request, path) != 0) {
+    return;
+  }
+
+  char *scope = extract_scope(path);
+  if(scope == NULL) {
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
+
+  if(authorize_request(request, scope, 1) != 0) {
+    free(scope);
+    return;
+  }
+  free(scope);
 
   if(path[path_len - 1] == '/') {
     // no DELETE on directories.

@@ -101,3 +101,36 @@ struct rs_authorization *make_authorization(const char *scope_string) {
   free(scope_copy);
   return authorization;
 }
+
+struct rs_auth_scope *find_auth_scope(struct rs_authorization *auth, const char *scope_name) {
+  struct rs_auth_scope *root_scope = NULL;
+  struct rs_auth_scope *matching_scope = NULL;
+  struct rs_auth_scope *current;
+  for(current = auth->scope; current != NULL; current = current->next) {
+    if(strcmp(current->name, scope_name) == 0) {
+      matching_scope = current;
+      if(matching_scope->write == 1) {
+        // writable matching scope, definitely satisfies the request
+        return matching_scope;
+      } else if(root_scope) {
+        // found matching & root, nothing more to look for.
+        break;
+      }
+    } else if(strcmp(current->name, "") == 0) {
+      // found root scope, let's save it.
+      root_scope = current;
+      if(root_scope->write == 1) {
+        // nothing greater than this.
+        return root_scope;
+      } else if(matching_scope) {
+        // found root & matching, nothing more to look for.
+        break;
+      }
+    }
+  }
+  if(matching_scope) {
+    return matching_scope;
+  } else {
+    return root_scope;
+  }
+}
