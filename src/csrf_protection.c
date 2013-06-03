@@ -23,6 +23,8 @@ int csrf_protection_init(struct evhttp_request *request, char **csrf_token_resul
     return 1;
   }
   struct session_data *session_data = make_session_data(csrf_token);
+
+  // FIXME: possible leak here???
   if(session_data == NULL || push_session(session_id, session_data) != 0) {
     free(session_id);
     free(csrf_token);

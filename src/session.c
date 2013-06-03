@@ -162,6 +162,9 @@ void free_session_data(struct session_data *session_data) {
   if(session_data->csrf_token) {
     free(session_data->csrf_token);
   }
+  if(session_data->timer) {
+    event_free(session_data->timer);
+  }
   free(session_data);
 }
 
