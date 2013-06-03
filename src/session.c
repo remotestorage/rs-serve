@@ -26,7 +26,7 @@
 #define RS_SESSION_MAX_SLOTS 100
 // maximum age of sessions in seconds
 // (this is the time the user has to decide about a authorization request)
-#define RS_SESSION_MAX_AGE 10
+#define RS_SESSION_MAX_AGE 120
 
 struct session_store {
   char **ids;
