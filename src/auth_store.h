@@ -17,6 +17,7 @@ void init_auth_store(void);
 void cleanup_auth_store(void);
 int store_authorization(char *bearer_token, char *scope_string);
 struct rs_authorization *find_authorization(const char *bearer_token);
+void print_authorizations(FILE *fp);
 
 #endif
 

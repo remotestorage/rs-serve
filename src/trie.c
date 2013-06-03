@@ -124,6 +124,16 @@ void destroy_trie(TrieNode *root) {
   free(root);
 }
 
+void iterate_trie(TrieNode *node, void (*cb)(void *, void *), void *userdata) {
+  if(node->value) {
+    cb(node->value, userdata);
+  }
+  int i;
+  for(i=0;node->childkeys[i] != 0;i++) {
+    iterate_trie(node->children[i], cb, userdata);
+  }
+}
+
 #ifdef DEBUG_TRIE
 
 #include <stdio.h>

@@ -12,7 +12,7 @@
 
 #include "rs-serve.h"
 
-char *time_now() {
+static char *time_now() {
   static char timestamp[100]; // FIXME: not threadsafe!
   time_t t = time(NULL);
   struct tm *tmp = localtime(&t);
@@ -55,6 +55,14 @@ void log_debug(char *format, ...) {
   sprintf(new_format, "[%s] [DEBUG] %s\n", timestamp, format);
   vfprintf(RS_LOG_FILE, new_format, ap);
   va_end(ap);
+}
+
+void log_dump_state_start(void) {
+  fprintf(RS_LOG_FILE, "[%s] -- START STATE DUMP --\n", time_now());
+}
+
+void log_dump_state_end(void) {
+  fprintf(RS_LOG_FILE, "[%s] -- END STATE DUMP --\n", time_now());
 }
 
 void add_cors_headers(struct evkeyvalq *headers) {

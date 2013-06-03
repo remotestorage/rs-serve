@@ -56,4 +56,6 @@ int trie_insert(TrieNode *parent, const char *key, void *value);
  */
 void *trie_search(TrieNode *parent, const char *key);
 
+void iterate_trie(TrieNode *node, void (*cb)(void *, void *userdata), void *userdata);
+
 #endif

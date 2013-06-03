@@ -45,3 +45,17 @@ int store_authorization(char *bearer_token, char *scope_string) {
 struct rs_authorization *find_authorization(const char *bearer_token) {
   return (struct rs_authorization*) trie_search(auth_token_store, bearer_token);
 }
+
+void print_authorization(void *_auth, void *_fp) {
+  FILE *fp = (FILE*) _fp;
+  struct rs_authorization *auth = (struct rs_authorization*) _auth;
+  struct rs_auth_scope *scope;
+  fprintf(fp, "Token: %s\n", auth->token);
+  for(scope = auth->scope; scope != NULL; scope = scope->next) {
+    fprintf(fp, "  Scope: \"%s\", Mode: %s\n", scope->name, scope->write ? "rw" : "r");
+  }
+}
+
+void print_authorizations(FILE *fp) {
+  iterate_trie(auth_token_store, print_authorization, (void*)fp);
+}

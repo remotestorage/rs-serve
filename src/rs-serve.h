@@ -67,6 +67,8 @@ void cleanup_config(void);
 void log_starting(void);
 void log_request(struct evhttp_request *request);
 void log_debug(char *format, ...);
+void log_dump_state_start(void);
+void log_dump_state_end(void);
 void add_cors_headers(struct evkeyvalq *headers);
 char *generate_token(size_t bytes);
 

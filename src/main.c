@@ -30,6 +30,13 @@ void cleanup_handler(int signum) {
   exit(EXIT_SUCCESS);
 }
 
+void dump_state_handler(int signum) {
+  log_dump_state_start();
+  print_authorizations(RS_LOG_FILE);
+  event_base_dump_events(base, RS_LOG_FILE);
+  log_dump_state_end();
+}
+
 int main(int argc, char **argv) {
 
   // parse command line arguments, set configuration vars (rs_*)
@@ -68,13 +75,23 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  // hook up event handlers (TERM and INT both terminate)
+  // hook up event handlers
+
+  // TERM and INT both terminate:
   struct sigaction termaction;
   memset(&termaction, 0, sizeof(struct sigaction));
   termaction.sa_handler = cleanup_handler;
 
   sigaction(SIGTERM, &termaction, NULL);
   sigaction(SIGINT, &termaction, NULL);
+
+  // USR1 dumps state to log
+
+  struct sigaction usr1action;
+  memset(&usr1action, 0, sizeof(struct sigaction));
+  usr1action.sa_handler = dump_state_handler;
+
+  sigaction(SIGUSR1, &usr1action, NULL);
 
   // setup auth token store
   init_auth_store();
