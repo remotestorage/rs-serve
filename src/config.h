@@ -84,6 +84,12 @@ extern int rs_real_storage_root_len;
 extern FILE *rs_log_file;
 #define RS_LOG_FILE rs_log_file
 
+// pid file
+extern FILE *rs_pid_file;
+#define RS_PID_FILE rs_pid_file
+extern char *rs_pid_file_path;
+#define RS_PID_FILE_PATH rs_pid_file_path
+
 // detach option
 extern int rs_detach;
 #define RS_DETACH rs_detach

@@ -37,6 +37,12 @@ static void print_help(const char *progname) {
           "                                  by name.\n"
           "  -g        | --gid             - Same as --uid, but setting the group ID.\n"
           "              --group           - Same as --user, but setting the group.\n"
+          "              --pid-file        - Write PID to given file.\n"
+          "              --stop            - Stop a running rs-serve process. The process\n"
+          "                                  is identified by the PID file specified via\n"
+          "                                  the --pid-file option. NOTE: the --stop option\n"
+          "                                  MUST precede the --pid-file option on the\n"
+          "                                  command line for this this to work.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -62,6 +68,10 @@ int rs_real_storage_root_len = 0;
 FILE *rs_log_file = NULL;
 uid_t rs_set_uid = 0;
 gid_t rs_set_gid = 0;
+FILE *rs_pid_file = NULL;
+char *rs_pid_file_path = NULL;
+
+int rs_stop_other = 0;
 
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
@@ -72,6 +82,8 @@ static struct option long_options[] = {
   { "gid", required_argument, 0, 'g' },
   { "user", required_argument, 0, 0 },
   { "group", required_argument, 0, 0 },
+  { "pid-file", required_argument, 0, 0 },
+  { "stop", no_argument, 0, 0 },
   // TODO:
   //{ "listen", required_argument, 0, 'l' },
   { "log-file", required_argument, 0, 'f' },
@@ -80,6 +92,11 @@ static struct option long_options[] = {
   { "version", no_argument, 0, 'v' },
   { 0, 0, 0, 0 }
 };
+
+void close_pid_file() {
+  fclose(RS_PID_FILE);
+  unlink(RS_PID_FILE_PATH);
+}
 
 void init_config(int argc, char **argv) {
   int opt;
@@ -121,7 +138,7 @@ void init_config(int argc, char **argv) {
       // long option with no short equivalent
       if(strcmp(long_options[opt_index].name, "chroot") == 0) {
         rs_chroot = 1;
-      } else if(strcmp(long_options[opt_index].name, "user") == 0) {
+      } else if(strcmp(long_options[opt_index].name, "user") == 0) { // --user
         errno = 0;
         struct passwd *user_entry = getpwnam(optarg);
         if(user_entry == NULL) {
@@ -133,7 +150,7 @@ void init_config(int argc, char **argv) {
           exit(EXIT_FAILURE);
         }
         rs_set_uid = user_entry->pw_uid;
-      } else if(strcmp(long_options[opt_index].name, "group") == 0) {
+      } else if(strcmp(long_options[opt_index].name, "group") == 0) { // --group
         errno = 0;
         struct group *group_entry = getgrnam(optarg);
         if(group_entry == NULL) {
@@ -145,8 +162,43 @@ void init_config(int argc, char **argv) {
           exit(EXIT_FAILURE);
         }
         rs_set_gid = group_entry->gr_gid;
+      } else if(strcmp(long_options[opt_index].name, "pid-file") == 0) { // --pid-file
+        rs_pid_file_path = optarg;
+
+        // stop was requested, kill other process by pid-file
+        if(rs_stop_other) {
+          rs_pid_file = fopen(rs_pid_file_path, "r");
+          if(rs_pid_file == NULL) {
+            perror("Failed to open pid file for reading");
+            exit(EXIT_FAILURE);
+          }
+          pid_t pid;
+          fscanf(rs_pid_file, "%d", &pid);
+          if(kill(pid, SIGTERM) == 0) {
+            printf("Sent SIGTERM to process %d\n", pid);
+            exit(EXIT_SUCCESS);
+          } else {
+            fprintf(stderr, "Sending SIGTERM to process %d failed: %s\n", pid, strerror(errno));
+            exit(EXIT_FAILURE);
+          }
+        }
+
+        // open pid file and store our pid there
+        rs_pid_file = fopen(rs_pid_file_path, "wx");
+        if(rs_pid_file == NULL) {
+          perror("Failed to open pid file");
+          exit(EXIT_FAILURE);
+        }
+        atexit(close_pid_file);
+      } else if(strcmp(long_options[opt_index].name, "stop") == 0) { // --stop
+        rs_stop_other = 1;
       }
     }
+  }
+
+  if(rs_stop_other) {
+    fprintf(stderr, "ERROR: can't stop existing process without --pid-file option.\n");
+    exit(EXIT_FAILURE);
   }
 
   // init RS_STORAGE_ROOT

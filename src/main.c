@@ -37,6 +37,14 @@ void dump_state_handler(int signum) {
   log_dump_state_end();
 }
 
+// write pid to PID file.
+static void write_pid(void) {
+  if(RS_PID_FILE) {
+    fprintf(RS_PID_FILE, "%d", getpid());
+    fflush(RS_PID_FILE);
+  }
+}
+
 int main(int argc, char **argv) {
 
   // parse command line arguments, set configuration vars (rs_*)
@@ -146,6 +154,8 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
       }
 
+      write_pid();
+
       return event_base_dispatch(base);
     } else if(child_pid == -1) {
       perror("fork() failed");
@@ -159,6 +169,9 @@ int main(int argc, char **argv) {
       _exit(0);
     }
   } else {
+
+    write_pid();
+
     return event_base_dispatch(base);
   }
 }
