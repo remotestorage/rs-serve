@@ -45,6 +45,10 @@ extern char *rs_hostname;
 #define RS_HOSTNAME rs_hostname
 #define RS_STORAGE_API "draft-dejong-remotestorage-00"
 #define RS_AUTH_METHOD "http://tools.ietf.org/html/rfc6749#section-4.2"
+// whether to indent the JSON response of webfinger.
+// Useful for debugging / demonstration purposes.
+#define RS_INDENT_WEBFINGER 1
+//#define RS_INDENT_WEBFINGER 0
 
 // static auth token
 #define RS_TOKEN "static-token-for-now"
