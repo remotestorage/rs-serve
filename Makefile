@@ -23,8 +23,16 @@ clean:
 	@find -name '*.swp' -exec rm '{}' ';'
 
 install: rs-serve
-	@echo [INSTALL] rs-serve
+	@echo "[INSTALL] rs-serve"
 	@install -s rs-serve /usr/bin
+	@echo "[INSTALL] init script"
+	@install -m 0755 init-script.sh /etc/init.d/rs-serve
+ifeq (${shell type update-rc.d >/dev/null 2>&1 ; echo $$?}, 0)
+	@echo "[UPDATE-RC.D]"
+	@update-rc.d rs-serve defaults
+else
+	@echo "(can't update /etc/rcN.d, no idea how that works on your system)"
+endif
 
 test: all
 	@test/run.sh
