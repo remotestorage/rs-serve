@@ -1,0 +1,3 @@
+# -*- mode:sh -*-
+
+OPTIONS="--detach --log-file=/var/log/rs-serve.log --homes=<remotestorage>"

@@ -20,6 +20,8 @@ PIDFILE=/var/run/rs-serve.pid
 # If the daemon is not there, then exit.
 test -x $DAEMON || exit 5
 
+. /etc/default/rs-serve
+
 case $1 in
  start)
   # Checked the PID file exists and check the actual status of process
@@ -34,7 +36,7 @@ case $1 in
   log_daemon_msg "Starting the process" "$NAME"
   # Start the daemon with the help of start-stop-daemon
   # Log the message appropriately
-  if start-stop-daemon --start --quiet --oknodo --pidfile $PIDFILE --exec $DAEMON ; then
+  if start-stop-daemon --start --quiet --oknodo --pidfile $PIDFILE --exec $DAEMON -- $OPTIONS ; then
    log_end_msg 0
   else
    log_end_msg 1

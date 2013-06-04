@@ -25,8 +25,10 @@ clean:
 install: rs-serve
 	@echo "[INSTALL] rs-serve"
 	@install -s rs-serve /usr/bin
-	@echo "[INSTALL] init script"
+	@echo "[INSTALL] /etc/init.d/rs-serve"
 	@install -m 0755 init-script.sh /etc/init.d/rs-serve
+	@echo "[INSTALL] /etc/default/rs-serve"
+	@install init-script-defaults /etc/default/rs-serve
 ifeq (${shell type update-rc.d >/dev/null 2>&1 ; echo $$?}, 0)
 	@echo "[UPDATE-RC.D]"
 	@update-rc.d rs-serve defaults
