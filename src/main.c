@@ -21,9 +21,9 @@ void cleanup_handler(int signum) {
   fprintf(stderr, "\"%s\" signal caught, cleaning up...\n", strsignal(signum));
   event_base_loopbreak(RS_EVENT_BASE);
   evhttp_free(server);
+  reset_session_store();
   event_base_free(RS_EVENT_BASE);
   magic_close(magic_cookie);
-  reset_session_store();
   cleanup_auth_store();
   cleanup_config();
   fprintf(stderr, "Exiting.\n");
