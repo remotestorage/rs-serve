@@ -49,8 +49,8 @@ static void print_help(const char *progname) {
           "                                  The given <dir> argument denotes the directory\n"
           "                                  within each user's home directory to use as\n"
           "                                  their storage-root.\n"
-          "  --homes-group=<group>         - Only serve home directories of members of this\n"
-          "                                  system group.\n"
+          "  --homes-min-uid=<uid>         - Don't serve home directories of users with a\n"
+          "                                  user ID less than given <uid> (default: 1000)\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -81,7 +81,7 @@ char *rs_pid_file_path = NULL;
 // home directory serving
 int rs_serve_homes = 0;
 char *rs_serve_homes_dir = NULL;
-gid_t rs_serve_homes_gid;
+uid_t rs_serve_homes_min_uid = 1000;
 
 int rs_stop_other = 0;
 
@@ -97,7 +97,7 @@ static struct option long_options[] = {
   { "pid-file", required_argument, 0, 0 },
   { "stop", no_argument, 0, 0 },
   { "homes", required_argument, 0, 0 },
-  { "homes-group", required_argument, 0, 0 },
+  { "homes-min-uid", required_argument, 0, 0 },
   // TODO:
   //{ "listen", required_argument, 0, 'l' },
   { "log-file", required_argument, 0, 'f' },
@@ -210,19 +210,8 @@ void init_config(int argc, char **argv) {
         rs_serve_homes = 1;
         rs_serve_homes_dir = optarg;
         fprintf(stderr, "WARNING: --homes is not implemented yet.\n");
-      } else if(strcmp(long_options[opt_index].name, "homes-group") == 0) { // --homes-group
-        errno = 0;
-        struct group *group_entry = getgrnam(optarg);
-        if(group_entry == NULL) {
-          if(errno != 0) {
-            perror("getgrnam() failed");
-          } else {
-            fprintf(stderr, "Failed to find GID for group \"%s\".\n", optarg);
-          }
-          exit(EXIT_FAILURE);
-        }
-        rs_serve_homes_gid = group_entry->gr_gid;
-        fprintf(stderr, "WARNING: --homes-group is not implemented yet.\n");
+      } else if(strcmp(long_options[opt_index].name, "homes-min-uid") == 0) { // --homes-min-uid
+        rs_serve_homes_min_uid = atoi(optarg);
       }
     }
   }

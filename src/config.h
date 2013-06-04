@@ -70,8 +70,8 @@ extern int rs_serve_homes;
 #define RS_SERVE_HOMES rs_serve_homes
 extern char *rs_serve_homes_dir;
 #define RS_SERVE_HOMES_DIR rs_serve_homes_dir
-extern gid_t rs_serve_homes_gid;
-#define RS_SERVE_HOMES_GID rs_serve_homes_gid
+extern uid_t rs_serve_homes_min_uid;
+#define RS_SERVE_HOMES_MIN_UID rs_serve_homes_min_uid
 
 // magic database file to use (NULL indicates system default)
 #define RS_MAGIC_DATABASE NULL
