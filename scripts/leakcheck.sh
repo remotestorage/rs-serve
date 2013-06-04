@@ -6,9 +6,9 @@ sleep 2
 
 . scripts/run-requests.sh
 
-echo -n "Waiting for session(s) to expire (needs RS_SESSION_MAX_AGE=10 to work)..."
-sleep 12
-echo "!"
+# echo -n "Waiting for session(s) to expire (needs RS_SESSION_MAX_AGE=10 to work)..."
+# sleep 12
+# echo "!"
 
 # done.
 kill %1
