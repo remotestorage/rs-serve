@@ -9,7 +9,7 @@ Dependencies
 - pkg-config (or tweak the Makefile)
 - gcc
 - libc
-- libevent
+- libevent (>= 2.0)
 - libmagic
 
 On Debian based systems, this should give you all you need:
