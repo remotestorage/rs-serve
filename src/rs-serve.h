@@ -66,7 +66,8 @@ void cleanup_config(void);
 
 void log_starting(void);
 void log_request(struct evhttp_request *request);
-void log_debug(char *format, ...);
+void do_log_debug(const char *file, int line, char *format, ...);
+#define log_debug(...) do_log_debug(__FILE__, __LINE__, __VA_ARGS__)
 void log_dump_state_start(void);
 void log_dump_state_end(void);
 void add_cors_headers(struct evkeyvalq *headers);

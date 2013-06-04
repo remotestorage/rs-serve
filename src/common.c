@@ -47,12 +47,16 @@ void log_request(struct evhttp_request *request) {
   fflush(RS_LOG_FILE);
 }
 
-void log_debug(char *format, ...) {
+void do_log_debug(const char *file, int line, char *format, ...) {
   va_list ap;
   va_start(ap, format);
   char *timestamp = time_now();
-  char new_format[strlen(timestamp) + strlen(format) + 13];
-  sprintf(new_format, "[%s] [DEBUG] %s\n", timestamp, format);
+  char new_format[strlen(timestamp) +
+                  strlen(format) +
+                  strlen(file) +
+                  5 + // (reasonable length for 'line')
+                  + 20];
+  sprintf(new_format, "[%s] [DEBUG] %s:%d: %s\n", timestamp, file, line, format);
   vfprintf(RS_LOG_FILE, new_format, ap);
   va_end(ap);
 }
