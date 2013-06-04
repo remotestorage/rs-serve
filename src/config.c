@@ -37,12 +37,20 @@ static void print_help(const char *progname) {
           "                                  by name.\n"
           "  -g        | --gid             - Same as --uid, but setting the group ID.\n"
           "              --group           - Same as --user, but setting the group.\n"
-          "              --pid-file        - Write PID to given file.\n"
-          "              --stop            - Stop a running rs-serve process. The process\n"
+          "  --pid-file                    - Write PID to given file.\n"
+          "  --stop                        - Stop a running rs-serve process. The process\n"
           "                                  is identified by the PID file specified via\n"
           "                                  the --pid-file option. NOTE: the --stop option\n"
           "                                  MUST precede the --pid-file option on the\n"
           "                                  command line for this this to work.\n"
+          "  --homes=<dir>                 - Serve from user's home directories instead of\n"
+          "                                  from the root path.   The options --root and\n"
+          "                                  --homes are mutually exclusive.\n"
+          "                                  The given <dir> argument denotes the directory\n"
+          "                                  within each user's home directory to use as\n"
+          "                                  their storage-root.\n"
+          "  --homes-group=<group>         - Only serve home directories of members of this\n"
+          "                                  system group.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -70,6 +78,10 @@ uid_t rs_set_uid = 0;
 gid_t rs_set_gid = 0;
 FILE *rs_pid_file = NULL;
 char *rs_pid_file_path = NULL;
+// home directory serving
+int rs_serve_homes = 0;
+char *rs_serve_homes_dir = NULL;
+gid_t rs_serve_homes_gid;
 
 int rs_stop_other = 0;
 
@@ -84,6 +96,8 @@ static struct option long_options[] = {
   { "group", required_argument, 0, 0 },
   { "pid-file", required_argument, 0, 0 },
   { "stop", no_argument, 0, 0 },
+  { "homes", required_argument, 0, 0 },
+  { "homes-group", required_argument, 0, 0 },
   // TODO:
   //{ "listen", required_argument, 0, 'l' },
   { "log-file", required_argument, 0, 'f' },
@@ -192,8 +206,30 @@ void init_config(int argc, char **argv) {
         atexit(close_pid_file);
       } else if(strcmp(long_options[opt_index].name, "stop") == 0) { // --stop
         rs_stop_other = 1;
+      } else if(strcmp(long_options[opt_index].name, "homes") == 0) { // --homes
+        rs_serve_homes = 1;
+        rs_serve_homes_dir = optarg;
+        fprintf(stderr, "WARNING: --homes is not implemented yet.\n");
+      } else if(strcmp(long_options[opt_index].name, "homes-group") == 0) { // --homes-group
+        errno = 0;
+        struct group *group_entry = getgrnam(optarg);
+        if(group_entry == NULL) {
+          if(errno != 0) {
+            perror("getgrnam() failed");
+          } else {
+            fprintf(stderr, "Failed to find GID for group \"%s\".\n", optarg);
+          }
+          exit(EXIT_FAILURE);
+        }
+        rs_serve_homes_gid = group_entry->gr_gid;
+        fprintf(stderr, "WARNING: --homes-group is not implemented yet.\n");
       }
     }
+  }
+
+  if(rs_storage_root && rs_serve_homes) {
+    fprintf(stderr, "ERROR: You cannot specify both --root and --homes options.\n");
+    exit(EXIT_FAILURE);
   }
 
   if(rs_stop_other) {
@@ -201,23 +237,25 @@ void init_config(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  // init RS_STORAGE_ROOT
-  if(rs_storage_root == NULL) {
-    rs_storage_root = malloc(PATH_MAX + 1);
-    if(getcwd(rs_storage_root, PATH_MAX + 1) == NULL) {
-      perror("getcwd() failed");
-      exit(EXIT_FAILURE);
+  if(! rs_serve_homes) {
+    // init RS_STORAGE_ROOT
+    if(rs_storage_root == NULL) {
+      rs_storage_root = malloc(PATH_MAX + 1);
+      if(getcwd(rs_storage_root, PATH_MAX + 1) == NULL) {
+        perror("getcwd() failed");
+        exit(EXIT_FAILURE);
+      }
+      rs_storage_root_len = strlen(rs_storage_root);
+      rs_storage_root = realloc(rs_storage_root, rs_storage_root_len + 1);
     }
-    rs_storage_root_len = strlen(rs_storage_root);
-    rs_storage_root = realloc(rs_storage_root, rs_storage_root_len + 1);
-  }
 
-  if(RS_CHROOT) {
-    rs_real_storage_root = "";
-    rs_real_storage_root_len = 0;
-  } else {
-    rs_real_storage_root = rs_storage_root;
-    rs_real_storage_root_len = rs_storage_root_len;
+    if(RS_CHROOT) {
+      rs_real_storage_root = "";
+      rs_real_storage_root_len = 0;
+    } else {
+      rs_real_storage_root = rs_storage_root;
+      rs_real_storage_root_len = rs_storage_root_len;
+    }
   }
 
   if(rs_log_file == NULL) {
