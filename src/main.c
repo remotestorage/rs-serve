@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if(getuid() == 0) {
+  if(getuid() == 0 && (! RS_SERVE_HOMES)) {
     fprintf(stderr, "warning: running as root is discouraged. Use the --uid or --user option.\n");
   }
 
