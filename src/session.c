@@ -165,6 +165,7 @@ void free_session_data(struct session_data *session_data) {
   if(session_data->timer) {
     event_free(session_data->timer);
   }
+  memset(session_data, 0, sizeof(session_data));
   free(session_data);
 }
 
