@@ -1,0 +1,40 @@
+
+rs-serve - A remotestorage server implementation
+================================================
+
+Dependencies
+------------
+
+- GNU make
+- pkg-config (or tweak the Makefile)
+- gcc
+- libc
+- libevent
+- libmagic
+
+On Debian based systems, this should give you all you need:
+
+  apt-get install build-essential libevent-dev libmagic-dev
+
+If you want to develop, you may also want debug symbols and valgrind (required by leakcheck.sh script):
+
+  apt-get install libevent-dbg valgrind
+
+Building
+--------
+
+Given you have all dependencies installed, simply run
+
+  make
+
+and you should be good to go.
+
+Installing
+----------
+
+To install the rs-serve binary to /usr/bin, type:
+
+  make install
+
+To install it somewhere else, tweak the Makefile first.
+
