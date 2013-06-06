@@ -1,15 +1,26 @@
-CFLAGS=${shell pkg-config libevent --cflags} -ggdb -Wall -Werror --std=c99 -pedantic
-LDFLAGS=${shell pkg-config libevent --libs} -lmagic
+INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/oniguruma/
 
-OBJECTS=src/main.o src/common.o src/storage.o src/auth.o src/handler.o src/webfinger.o src/config.o src/ui.o src/auth_struct.o src/session.o src/csrf_protection.o src/trie.o src/auth_store.o
+CFLAGS=${shell pkg-config libevent_openssl --cflags} -ggdb -Wall --std=c99 $(INCLUDES)
+LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic
+
+#OBJECTS=src/main.o src/common.o src/storage.o src/auth.o src/handler.o src/webfinger.o src/config.o src/ui.o src/auth_struct.o src/session.o src/csrf_protection.o src/trie.o src/auth_store.o
+
+BASE_OBJECTS=src/common.o src/process.o src/config.o src/parsed_path.o
+HANDLER_OBJECTS=src/handler/global.o src/handler/dispatch.o
+PROCESS_OBJECTS=src/process/main.o src/process/storage.o
+OBJECTS=$(BASE_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
+
+STATIC_LIBS=lib/evhtp/build/libevhtp.a
+
+SUBMODULES=lib/evhtp/
 
 default: all
 
 all: rs-serve
 
-rs-serve: $(OBJECTS)
+rs-serve: $(STATIC_LIBS) $(OBJECTS)
 	@echo "[LD] $@"
-	@$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
+	@$(CC) -o $@ $(OBJECTS) $(STATIC_LIBS) $(LDFLAGS)
 
 %.o: %.c
 	@echo "[CC] ${shell echo $@ | sed 's/src\///' | sed 's/\.o//'}"
@@ -18,7 +29,7 @@ rs-serve: $(OBJECTS)
 clean:
 	@echo "[CLEAN]"
 	@rm -f rs-serve
-	@rm -f $(OBJECTS)
+	@find src/ -name '*.o' -exec rm '{}' ';'
 	@find -name '*~' -exec rm '{}' ';'
 	@find -name '*.swp' -exec rm '{}' ';'
 
@@ -46,3 +57,23 @@ limit_check: all
 	scripts/limitcheck.sh 5000
 
 .PHONY: default all clean leakcheck
+
+## DEPENDENT LIBS
+
+lib/evhtp/build/libevhtp.a: lib/evhtp/
+	@echo "[DEPS] libevhtp"
+	@cd lib/evhtp/build && cmake .. && make
+
+## SUBMODULES
+
+submodules: $(SUBMODULES)
+
+clean-submodules:
+	@echo "[CLEAN SUBMODULES]"
+	@rm -rf $(SUBMODULES)
+
+$(SUBMODULES):
+	@echo "[SUBMODULE] $@"
+	@git submodule update --init $@
+
+.PHONY: submodules clean-submodules

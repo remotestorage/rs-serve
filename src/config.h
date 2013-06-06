@@ -31,7 +31,7 @@
  */
 
 // address & port to bind to
-#define RS_ADDRESS NULL
+#define RS_ADDRESS "0.0.0.0"
 extern int rs_port;
 #define RS_PORT rs_port
 
@@ -56,6 +56,7 @@ extern char *rs_hostname;
 // request path to the storage-root
 #define RS_STORAGE_PATH "/storage"
 #define RS_STORAGE_PATH_LEN 8
+#define RS_STORAGE_PATH_RE "^/storage/([^/]+)/.*$"
 // request path to the authorization handler
 #define RS_AUTH_PATH "/auth"
 #define RS_AUTH_PATH_LEN 5

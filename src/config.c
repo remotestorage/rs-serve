@@ -64,7 +64,7 @@ static void print_version() {
   fprintf(stderr, "rs-serve %d.%d%s\n", RS_VERSION_MAJOR, RS_VERSION_MINOR, RS_VERSION_POSTFIX);
 }
 
-int rs_port = 80;
+int rs_port = 8000;
 char *rs_hostname = "local.dev";
 char *rs_storage_root = NULL;
 int rs_storage_root_len = 0;

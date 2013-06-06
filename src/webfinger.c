@@ -18,7 +18,6 @@
 # define WEBFINGER_TEMPLATE "{\"links\":[{\"rel\":\"remotestorage\",\"href\":\"%s://%s:%d%s\",\"type\":\"%s\",\"properties\":{\"auth-method\":\"%s\",\"auth-endpoint\":\"%s://%s:%d%s\"}}]}"
 #endif
 
-
 static int is_valid_user(const char *name) {
   int buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
   if(buflen == -1) {

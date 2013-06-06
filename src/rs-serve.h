@@ -21,8 +21,6 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -32,6 +30,14 @@
 #include <pwd.h>
 #include <grp.h>
 #include <stdarg.h>
+#include <search.h>
+#include <limits.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/signalfd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 // libevent headers
 #include <event2/event.h>
@@ -39,6 +45,9 @@
 #include <event2/http.h>
 #include <event2/keyvalq_struct.h>
 #include <event2/util.h>
+
+// libevhtp headers
+#include <evhtp.h>
 
 // libevent doesn't define this for some reason.
 #define HTTP_UNAUTHORIZED 401
@@ -54,6 +63,8 @@
 #include "auth_struct.h"
 #include "auth_store.h"
 #include "session.h"
+#include "parsed_path.h"
+#include "process.h"
 
 extern magic_t magic_cookie;
 
@@ -68,6 +79,9 @@ void log_starting(void);
 void log_request(struct evhttp_request *request);
 void do_log_debug(const char *file, int line, char *format, ...);
 #define log_debug(...) do_log_debug(__FILE__, __LINE__, __VA_ARGS__)
+void log_info(char *format, ...);
+void log_warn(char *format, ...);
+void log_error(char *format, ...);
 void log_dump_state_start(void);
 void log_dump_state_end(void);
 void add_cors_headers(struct evkeyvalq *headers);
@@ -76,7 +90,8 @@ char *generate_token(size_t bytes);
 /* HANDLER */
 
 void fatal_error_callback(int err);
-void handle_request_callback(struct evhttp_request *request, void *ctx);
+void global_handler(struct evhttp_request *request, void *ctx);
+void setup_dispatch_handler(evhtp_t *server, const char *path);
 
 /* STORAGE */
 

@@ -47,6 +47,45 @@ void log_request(struct evhttp_request *request) {
   fflush(RS_LOG_FILE);
 }
 
+void log_warn(char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+  char *timestamp = time_now();
+  char new_format[strlen(timestamp) +
+                  strlen(format) +
+                  6 + // some space for PID
+                  + 14];
+  sprintf(new_format, "[%d] [%s] [WARN] %s\n", getpid(), timestamp, format);
+  vfprintf(RS_LOG_FILE, new_format, ap);
+  va_end(ap);
+}
+
+void log_info(char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+  char *timestamp = time_now();
+  char new_format[strlen(timestamp) +
+                  strlen(format) +
+                  6 + // some space for PID
+                  + 14];
+  sprintf(new_format, "[%d] [%s] [INFO] %s\n", getpid(), timestamp, format);
+  vfprintf(RS_LOG_FILE, new_format, ap);
+  va_end(ap);
+}
+
+void log_error(char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+  char *timestamp = time_now();
+  char new_format[strlen(timestamp) +
+                  strlen(format) +
+                  6 + // some space for PID
+                  + 15];
+  sprintf(new_format, "[%d] [%s] [ERROR] %s\n", getpid(), timestamp, format);
+  vfprintf(RS_LOG_FILE, new_format, ap);
+  va_end(ap);
+}
+
 void do_log_debug(const char *file, int line, char *format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -55,8 +94,9 @@ void do_log_debug(const char *file, int line, char *format, ...) {
                   strlen(format) +
                   strlen(file) +
                   5 + // (reasonable length for 'line')
-                  + 20];
-  sprintf(new_format, "[%s] [DEBUG] %s:%d: %s\n", timestamp, file, line, format);
+                  6 + // space for PID
+                  + 23];
+  sprintf(new_format, "[%d] [%s] [DEBUG] %s:%d: %s\n", getpid(), timestamp, file, line, format);
   vfprintf(RS_LOG_FILE, new_format, ap);
   va_end(ap);
 }
