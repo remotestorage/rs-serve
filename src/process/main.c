@@ -226,6 +226,11 @@ int main(int argc, char **argv) {
                                          handle_signal, NULL);
   event_add(signal_event, NULL);
 
+  /** WRITE PID FILE **/
+  if(RS_PID_FILE) {
+    fprintf(RS_PID_FILE, "%d", getpid());
+    fflush(RS_PID_FILE);
+  }
 
   /** RUN EVENT LOOP **/
 

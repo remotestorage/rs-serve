@@ -59,8 +59,7 @@ static struct option long_options[] = {
   { "hostname", required_argument, 0, 'n' },
   { "group", required_argument, 0, 0 },
   { "pid-file", required_argument, 0, 0 },
-  // TODO:
-  //{ "listen", required_argument, 0, 'l' },
+  { "stop", no_argument, 0, 0 },
   { "log-file", required_argument, 0, 'f' },
   { "detach", no_argument, 0, 'd' },
   { "help", no_argument, 0, 'h' },
