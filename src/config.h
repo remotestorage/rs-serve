@@ -50,34 +50,6 @@ extern char *rs_hostname;
 #define RS_INDENT_WEBFINGER 1
 //#define RS_INDENT_WEBFINGER 0
 
-// static auth token
-#define RS_TOKEN "static-token-for-now"
-
-// request path to the storage-root
-#define RS_STORAGE_PATH "/storage"
-#define RS_STORAGE_PATH_LEN 8
-#define RS_STORAGE_PATH_RE "^/storage/([^/]+)/.*$"
-// request path to the authorization handler
-#define RS_AUTH_PATH "/auth"
-#define RS_AUTH_PATH_LEN 5
-// request path to webfinger handler
-#define RS_WEBFINGER_PATH "/.well-known/webfinger"
-#define RS_WEBFINGER_PATH_LEN 22
-
-// path to the storage-root on the filesystem
-extern char *rs_storage_root;
-#define RS_STORAGE_ROOT rs_storage_root
-extern int rs_storage_root_len;
-#define RS_STORAGE_ROOT_LEN rs_storage_root_len
-
-// serving home directories
-extern int rs_serve_homes;
-#define RS_SERVE_HOMES rs_serve_homes
-extern char *rs_serve_homes_dir;
-#define RS_SERVE_HOMES_DIR rs_serve_homes_dir
-extern uid_t rs_serve_homes_min_uid;
-#define RS_SERVE_HOMES_MIN_UID rs_serve_homes_min_uid
-
 // magic database file to use (NULL indicates system default)
 #define RS_MAGIC_DATABASE NULL
 
@@ -88,14 +60,6 @@ extern uid_t rs_serve_homes_min_uid;
 
 // permissions for newly created files
 #define RS_FILE_CREATE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
-
-// whether to change root before serving any files
-extern int rs_chroot;
-#define RS_CHROOT rs_chroot
-extern char *rs_real_storage_root;
-extern int rs_real_storage_root_len;
-#define RS_REAL_STORAGE_ROOT rs_real_storage_root
-#define RS_REAL_STORAGE_ROOT_LEN rs_real_storage_root_len
 
 // log file
 extern FILE *rs_log_file;
@@ -110,45 +74,5 @@ extern char *rs_pid_file_path;
 // detach option
 extern int rs_detach;
 #define RS_DETACH rs_detach
-
-// user ID / group ID to set after binding socket
-extern uid_t rs_set_uid;
-#define RS_SET_UID rs_set_uid
-extern gid_t rs_set_gid;
-#define RS_SET_GID rs_set_gid
-
-/*
- * A NOTE ABOUT TOKEN SIZES:
- *
- * The token sizes are given in bytes here. These are the true numbers of random
- * bytes that will be generated for each token. The actual tokens transferred on the
- * wire will be encoded though (either hex- or base64-encoded, not sure yet), so will
- * be larger than those number of bytes.
- *
- * Before changing these numbers, keep in mind that while the CSRF token will only
- * be transferred twice (during authorization GET and POST), the bearer token is
- * transferred upon *every* request for data in storage.
- *
- */
-
-// number of bytes to use for CSRF token
-#define RS_CSRF_TOKEN_SIZE 32
-// number of bytes to use for bearer token
-#define RS_BEARER_TOKEN_SIZE 32
-
-// number of bytes for session ID
-// (stored in cookie, used to associate request with correct CSRF token)
-#define RS_SESSION_ID_SIZE 16
-// cookie name for storing the session ID
-#define RS_SESSION_ID_NAME "rs_serve_session_id"
-#define RS_SESSION_ID_NAME_LEN 19
-
-// using hex-encoded tokens for now, so 2 bytes per byte.
-#define TOKEN_BYTESIZE(length) (length * 2)
-
-// maximum number of bytes to POST to /auth
-// (must fit the token, the requested scope, the redirect_uri, plus the parameter
-//  keys for that and the URI encoding overhead)
-#define RS_MAX_AUTH_BODY_SIZE 4096
 
 #endif /* !RS_CONFIG_H */

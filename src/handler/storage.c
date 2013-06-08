@@ -22,6 +22,8 @@
  * These functions are only called from storage processes.
  */
 
+// escape backslashes (/) and double quotes (") to put the given string
+// in quoted JSON strings.
 static char *escape_name(const char *name) {
   int max_len = strlen(name) * 2, i = 0;
   char *escaped = malloc(max_len + 1);
@@ -41,6 +43,7 @@ static char *escape_name(const char *name) {
   return escaped;
 }
 
+// serve a directory response for the given request
 static int serve_directory(struct rs_request *request) {
   struct evbuffer *buf = evbuffer_new();
   if(buf == NULL) {
@@ -113,6 +116,7 @@ static int serve_directory(struct rs_request *request) {
   return 0;
 }
 
+// serve a file response for the given request
 int serve_file(struct rs_request *request) {
   return 501;
 }

@@ -88,7 +88,7 @@ int hook_on_msg_complete(htparser *parser) {
   }
   log_debug("Storage handler returned status: %d", status);
   // storage_handle_* methods only return a status if they fail.
-  // otherwise they return zero and we can continue reading the request.
+  // otherwise they return zero and we can continue.
   if(status != 0) {
     send_error_response(request, status);
     return -1;

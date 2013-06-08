@@ -13,7 +13,6 @@
 #ifndef RS_COMMON_LOG_H
 #define RS_COMMON_LOG_H
 
-void log_starting(void);
 void log_info(char *format, ...);
 void log_warn(char *format, ...);
 void log_error(char *format, ...);

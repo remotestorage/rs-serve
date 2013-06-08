@@ -20,15 +20,6 @@ static char *time_now() {
   return timestamp;
 }
 
-void log_starting() {
-  const char *address = RS_ADDRESS;
-  if(! address) {
-    address = "0.0.0.0";
-  }
-  fprintf(RS_LOG_FILE, "[%s] Serving from \"%s\" on %s:%d\n", time_now(), RS_STORAGE_ROOT, address, RS_PORT);
-  fflush(RS_LOG_FILE);
-}
-
 void log_warn(char *format, ...) {
   va_list ap;
   va_start(ap, format);
