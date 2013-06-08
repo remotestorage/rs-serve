@@ -12,40 +12,7 @@
 
 #include "rs-serve.h"
 
-static uid_t user_uid(const char *username) {
-  int buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
-  char *buf = malloc(buflen);
-  if(buf == NULL) {
-    perror("malloc() failed");
-    return -2;
-  }
-  struct passwd *user_entry, *result_ptr;
-  user_entry = malloc(sizeof(struct passwd));
-  if(user_entry == NULL) {
-    perror("malloc() failed");
-    free(buf);
-    return -2;
-  }
-  int getpwnam_result = getpwnam_r(username, user_entry, buf, buflen, &result_ptr);
-  if(getpwnam_result != 0) {
-    log_error("getpwnam_r() failed: %s", strerror(getpwnam_result));
-    free(user_entry);
-    free(buf);
-    return -2;
-  }
-  if(result_ptr == NULL) {
-    log_error("User not found: %s", username);
-    free(user_entry);
-    free(buf);
-    return -1;
-  }
-  uid_t uid = user_entry->pw_uid;
-  free(user_entry);
-  free(buf);
-  return uid;
-}
-
-struct rs_process_info *find_storage_process(uid_t uid) {
+static struct rs_process_info *find_storage_process(uid_t uid) {
   struct rs_process_info *storage_process = process_find_uid(uid);
   if(storage_process == NULL) {
     storage_process = malloc(sizeof(struct rs_process_info));
@@ -62,64 +29,60 @@ struct rs_process_info *find_storage_process(uid_t uid) {
   return storage_process;
 }
 
-static evhtp_res dispatch_handler_parse_path(evhtp_request_t *request, evhtp_path_t *path, void *arg) {
-  char *username = path->match_start;
-  char *file_path = path->match_end;
+int dispatch_request(struct evbuffer *buffer, int fd) {
+  size_t buf_len = evbuffer_get_length(buffer);
+  char *buf = malloc(buf_len + 1);
+  if(buf == NULL) {
+    log_error("malloc() failed: %s", strerror(errno));
+    return -1;
+  }
+  evbuffer_remove(buffer, buf, buf_len);
+  buf[buf_len] = 0; // terminate string.
 
-  log_debug("got request for user: \"%s\", path: \"%s\"", username, file_path);
+  // parse everything
 
-  uid_t uid = user_uid(username);
+  char *saveptr = NULL;
+  char *verb = strtok_r(buf, " ", &saveptr);
+  char *username = strtok_r(NULL, "/ ", &saveptr);
+  char *file_path = strtok_r(NULL, " ", &saveptr);
+  char *http_version = strtok_r(NULL, "\n", &saveptr);
+  char *rest = strtok_r(NULL, "", &saveptr);
+
+  /* log_debug("Parsed something. Let's see:\n  verb: %s\n  username: %s\n  path: %s\n  http version: %s\n  rest: %s", */
+  /*           verb, username, file_path, http_version, rest); */
+
+  uid_t uid = user_get_uid(username);
 
   if(uid == -1) {
-    return EVHTP_RES_NOTFOUND;
+    // TODO: send 404 response here
+    log_error("User not found: %s", username);
+    free(buf);
+    return -1;
   } else if(uid == -2) {
-    return EVHTP_RES_SERVERR;
+    // TODO: send 500 response here
+    log_error("Failed to get uid for user: %s", username);
+    free(buf);
+    return -1;
   }
 
   // TODO: add check for UID > MIN_UID
   //   (we don't want to fork storage workers for system users)
 
-  evhtp_request_pause(request);
+  // rewrite first line to only include file path
 
-  log_debug("Connection socket: %d", request->conn->sock);
+  int new_len = sprintf(buf, "%s /%s %s\n%s", verb, file_path, http_version, rest);
+  log_debug("reallocating to %d bytes", new_len + 1);
+  buf = realloc(buf, new_len + 1);
+  if(buf == NULL) {
+    log_error("BUG: realloc() failed to shrink buffer from %d to %d bytes: %s",
+              buf_len + 1, new_len + 1, strerror(errno));
+  }
+  buf_len = new_len;
 
   struct rs_process_info *storage_process = find_storage_process(uid);
+  send_fd_to_process(storage_process, fd, buf, buf_len + 1);
 
-  htp_method method = evhtp_request_get_method(request);
-  char *method_name;
-  switch(method) {
-  case htp_method_GET: method_name = "GET"; break;
-  case htp_method_PUT: method_name = "PUT"; break;
-  case htp_method_DELETE: method_name = "DELETE"; break;
-  case htp_method_OPTIONS: method_name = "OPTIONS"; break;
-  default: log_error("Unexpected method: %d", method); return EVHTP_RES_BADREQ;
-  }
-  int method_and_path_len = strlen(file_path) + strlen(method_name) + 9 + 1;
-  char *method_and_path = malloc(method_and_path_len);
+  free(buf);
 
-  if(method_and_path == NULL) {
-    log_error("malloc() failed: %s", strerror(errno));
-    return EVHTP_RES_SERVERR;
-  }
-
-  sprintf(method_and_path, "%s %s HTTP/1.1", method_name, file_path);
-
-  send_fd_to_process(storage_process, request->conn->sock,
-                     method_and_path, method_and_path_len);
-
-  free(method_and_path);
-
-  event_del(request->conn->resume_ev);
-
-  return EVHTP_RES_PAUSE;
-}
-
-void dispatch_handler(evhtp_request_t *request, void *arg) {
-  log_error("dispatch_handler called, but it's not supposed to be!");
-}
-
-void setup_dispatch_handler(evhtp_t *server, const char *re) {
-  evhtp_callback_t *cb = evhtp_set_regex_cb(server, re, dispatch_handler, NULL);
-  evhtp_set_hook(&cb->hooks, evhtp_hook_on_path,
-                 dispatch_handler_parse_path, NULL);
+  return 0;
 }

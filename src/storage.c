@@ -78,24 +78,6 @@ void storage_options(struct evhttp_request *request) {
   evhttp_send_reply(request, HTTP_OK, NULL, NULL);
 }
 
-/**
- * storage_get(request, sendbody)
- *
- * Handle a GET or HEAD request. If sendbody is zero, the body is not send.
- * If the given request URI carries a trailing forward slash ('/'), a JSON
- * directory listing is generated and sent.
- * If the given file doesn't exist, NOTFOUND is sent.
- * Otherwise the contents of the file are sent.
- *
- * The following headers are set:
- *   Content-Type   - in case of a directory listing, this is "application/json",
- *                    otherwise libmagic is used to guess the MIME type.
- *   Content-Length - In case of a HEAD request this is set to the number of bytes
- *                    in the file as reported by stat(). Otherwise it's automatically
- *                    set by libevent based on the actual number of bytes sent.
- *
- * Additionally CORS headers are set through add_cors_headers().
- */
 void storage_get(struct evhttp_request *request, int sendbody) {
   struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
   add_cors_headers(headers);

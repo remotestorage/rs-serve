@@ -38,18 +38,21 @@
 #include <sys/signalfd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/prctl.h>
 
 // libevent headers
 #include <event2/event.h>
 #include <event2/buffer.h>
-#include <event2/http.h>
+#include <event2/listener.h>
+#include <event2/http.h> // TODO: remove this line!
 #include <event2/keyvalq_struct.h>
 #include <event2/util.h>
 
 // libevhtp headers
-#include <evhtp.h>
+#include <evhtp.h> // TODO: figure out if we can just include htparse.h
 
 // libevent doesn't define this for some reason.
+// (TODO: remove these when we don't have event2/http.h anymore)
 #define HTTP_UNAUTHORIZED 401
 #define HTTP_FORBIDDEN 403
 
@@ -60,11 +63,15 @@
 
 #include "version.h"
 #include "config.h"
-#include "auth_struct.h"
-#include "auth_store.h"
-#include "session.h"
-#include "parsed_path.h"
-#include "process.h"
+
+#include "common/process.h"
+#include "common/log.h"
+#include "common/request_response.h"
+#include "common/user.h"
+
+#include "handler/dispatch.h"
+#include "handler/storage.h"
+#include "handler/response.h"
 
 extern magic_t magic_cookie;
 
@@ -75,13 +82,6 @@ void cleanup_config(void);
 
 /* COMMON */
 
-void log_starting(void);
-void log_request(struct evhttp_request *request);
-void do_log_debug(const char *file, int line, char *format, ...);
-#define log_debug(...) do_log_debug(__FILE__, __LINE__, __VA_ARGS__)
-void log_info(char *format, ...);
-void log_warn(char *format, ...);
-void log_error(char *format, ...);
 void log_dump_state_start(void);
 void log_dump_state_end(void);
 void add_cors_headers(struct evkeyvalq *headers);
@@ -90,32 +90,11 @@ char *generate_token(size_t bytes);
 /* HANDLER */
 
 void fatal_error_callback(int err);
-void global_handler(struct evhttp_request *request, void *ctx);
-void setup_dispatch_handler(evhtp_t *server, const char *path);
-
-/* STORAGE */
-
-void storage_options(struct evhttp_request *request);
-void storage_get(struct evhttp_request *request, int sendbody);
-void storage_put(struct evhttp_request *request);
-void storage_delete(struct evhttp_request *request);
-
-/* AUTH */
-
-int authorize_request(struct evhttp_request *request, const char *scope, int write);
-void auth_get(struct evhttp_request *request);
-void auth_post(struct evhttp_request *request);
-void auth_delete(struct evhttp_request *request);
 
 /* WEBFINGER */
 
 void webfinger_get_resource(struct evhttp_request *request, const char *address);
 void webfinger_get_hostmeta(struct evhttp_request *request);
-
-/* UI */
-
-void ui_prompt_authorization(struct evhttp_request *request, struct rs_authorization *authorization, const char *redirect_uri, const char *scope_string, const char *csrf_token);
-void ui_list_authorizations(struct evhttp_request *request);
 
 /* CSRF PROTECTION */
 

@@ -10,16 +10,14 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RS_PARSED_PATH_H
-#define RS_PARSED_PATH_H
+#ifndef RS_COMMON_LOG_H
+#define RS_COMMON_LOG_H
 
-struct parsed_path {
-  char *user;
-  char *scope;
-  const char *rest;
-};
+void log_starting(void);
+void log_info(char *format, ...);
+void log_warn(char *format, ...);
+void log_error(char *format, ...);
+void do_log_debug(const char *file, int line, char *format, ...);
+#define log_debug(...) do_log_debug(__FILE__, __LINE__, __VA_ARGS__)
 
-struct parsed_path *parse_path(const char *path, int *error_response);
-void free_parsed_path(struct parsed_path *parsed_path);
-
-#endif /* !RS_PARSED_PATH_H */
+#endif /* !RS_COMMON_LOG_H */

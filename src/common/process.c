@@ -36,8 +36,13 @@ struct rs_process_info *process_remove(pid_t pid) {
   log_debug("PROCESS_REMOVE({ pid:%ld })", pid);
   struct rs_process_info process_info;
   process_info.pid = pid;
-  return (struct rs_process_info *)tdelete(&process_info, &tree_root,
-                                           compare_proc_pid);
+  void *result = tdelete(&process_info, &tree_root,
+                         compare_proc_pid);
+  if(result) {
+    return *((struct rs_process_info **)result);
+  } else {
+    return NULL;
+  }
 };
 
 struct rs_process_info *process_find_uid(uid_t uid) {
@@ -56,8 +61,8 @@ struct rs_process_info *process_find_uid(uid_t uid) {
 static void process_kill_one(const void *nodep, const VISIT which, const int depth) {
   if(which == leaf) {
     struct rs_process_info *process_info = *(struct rs_process_info**)nodep;
-    log_debug("Sending KILL signal to child: %ld", process_info->pid);
-    kill(process_info->pid, SIGKILL);
+    log_debug("Sending HUP signal to child: %ld", process_info->pid);
+    kill(process_info->pid, SIGHUP);
   }
 }
 

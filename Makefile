@@ -5,10 +5,11 @@ LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --
 
 #OBJECTS=src/main.o src/common.o src/storage.o src/auth.o src/handler.o src/webfinger.o src/config.o src/ui.o src/auth_struct.o src/session.o src/csrf_protection.o src/trie.o src/auth_store.o
 
-BASE_OBJECTS=src/common.o src/process.o src/config.o src/parsed_path.o
-HANDLER_OBJECTS=src/handler/global.o src/handler/dispatch.o
+BASE_OBJECTS=src/config.o
+COMMON_OBJECTS=src/common/log.o src/common/process.o src/common/request_response.o src/common/user.o
+HANDLER_OBJECTS=src/handler/dispatch.o src/handler/storage.o src/handler/response.o
 PROCESS_OBJECTS=src/process/main.o src/process/storage.o
-OBJECTS=$(BASE_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
+OBJECTS=$(BASE_OBJECTS) $(COMMON_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
 
 STATIC_LIBS=lib/evhtp/build/libevhtp.a
 

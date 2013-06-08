@@ -10,14 +10,11 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RS_AUTH_STORE_H
-#define RS_AUTH_STORE_H
+#ifndef RS_HANDLER_RESPONSE_H
+#define RS_HANDLER_RESPONSE_H
 
-void init_auth_store(void);
-void cleanup_auth_store(void);
-int store_authorization(char *bearer_token, char *scope_string);
-struct rs_authorization *find_authorization(const char *bearer_token);
-void print_authorizations(FILE *fp);
+void send_error_response(struct rs_request *request, short status);
+void send_response_head(struct rs_request *request, short status, struct rs_header *header);
+void send_response_body(struct rs_request *request, struct evbuffer *buf);
 
 #endif
-
