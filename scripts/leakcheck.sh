@@ -1,6 +1,6 @@
 #!/bin/bash
 
-valgrind --leak-check=full --show-reachable=yes --log-file=leakcheck.log ./rs-serve -p 8181 &
+sudo valgrind --trace-children=yes --leak-check=full --show-reachable=yes --log-file=leakcheck.log ./rs-serve -p 8181 &
 
 sleep 2
 
