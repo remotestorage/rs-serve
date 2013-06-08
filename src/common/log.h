@@ -17,6 +17,8 @@ void log_info(char *format, ...);
 void log_warn(char *format, ...);
 void log_error(char *format, ...);
 void do_log_debug(const char *file, int line, char *format, ...);
-#define log_debug(...) do_log_debug(__FILE__, __LINE__, __VA_ARGS__)
+void dont_log_debug(const char *file, int line, char *format, ...);
+extern void (*current_log_debug)(const char *file, int line, char *format, ...);
+#define log_debug(...) current_log_debug(__FILE__, __LINE__, __VA_ARGS__)
 
 #endif /* !RS_COMMON_LOG_H */

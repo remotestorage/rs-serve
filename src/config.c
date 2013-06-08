@@ -32,6 +32,7 @@ static void print_help(const char *progname) {
           "                                  the --pid-file option. NOTE: the --stop option\n"
           "                                  MUST precede the --pid-file option on the\n"
           "                                  command line for this this to work.\n"
+          " --debug                        - Enable debug output.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -54,6 +55,8 @@ char *rs_pid_file_path = NULL;
 
 int rs_stop_other = 0;
 
+void (*current_log_debug)(const char *file, int line, char *format, ...) = NULL;
+
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
   { "hostname", required_argument, 0, 'n' },
@@ -61,6 +64,7 @@ static struct option long_options[] = {
   { "pid-file", required_argument, 0, 0 },
   { "stop", no_argument, 0, 0 },
   { "log-file", required_argument, 0, 'f' },
+  { "debug", no_argument, 0, 0 },
   { "detach", no_argument, 0, 'd' },
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
@@ -133,6 +137,8 @@ void init_config(int argc, char **argv) {
         atexit(close_pid_file);
       } else if(strcmp(long_options[opt_index].name, "stop") == 0) { // --stop
         rs_stop_other = 1;
+      } else if(strcmp(long_options[opt_index].name, "debug") == 0) { // --debug
+        current_log_debug = do_log_debug;
       }
     }
   }
@@ -140,6 +146,10 @@ void init_config(int argc, char **argv) {
   if(rs_stop_other) {
     fprintf(stderr, "ERROR: can't stop existing process without --pid-file option.\n");
     exit(EXIT_FAILURE);
+  }
+
+  if(current_log_debug == NULL) {
+    current_log_debug = dont_log_debug;
   }
 
   if(rs_log_file == NULL) {

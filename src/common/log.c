@@ -59,6 +59,8 @@ void log_error(char *format, ...) {
   va_end(ap);
 }
 
+void dont_log_debug(const char *file, int line, char *format, ...) {};
+
 void do_log_debug(const char *file, int line, char *format, ...) {
   va_list ap;
   va_start(ap, format);
