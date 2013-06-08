@@ -12,21 +12,18 @@
 
 #include "rs-serve.h"
 
-static struct rs_process_info *find_storage_process(uid_t uid) {
-  struct rs_process_info *storage_process = process_find_uid(uid);
+void start_storage_process(uid_t uid, int initial_fd, char *initial_buf, int initial_buf_len) {
+  struct rs_process_info *storage_process = malloc(sizeof(struct rs_process_info));
   if(storage_process == NULL) {
-    storage_process = malloc(sizeof(struct rs_process_info));
-    if(storage_process == NULL) {
-      perror("malloc() failed");
-      return NULL;
-    }
-    storage_process->uid = uid;
-    if(start_process(storage_process, storage_main) != 0) {
-      free(storage_process);
-      return NULL;
-    }
+    log_error("malloc() failed: %s", strerror(errno));
+    return;
   }
-  return storage_process;
+  storage_process->uid = uid;
+  if(start_process(storage_process, storage_main,
+                   initial_fd, initial_buf, initial_buf_len) != 0) {
+    free(storage_process);
+    return;
+  }
 }
 
 int dispatch_request(struct evbuffer *buffer, int fd) {
@@ -79,8 +76,12 @@ int dispatch_request(struct evbuffer *buffer, int fd) {
   }
   buf_len = new_len;
 
-  struct rs_process_info *storage_process = find_storage_process(uid);
-  send_fd_to_process(storage_process, fd, buf, buf_len + 1);
+  struct rs_process_info *storage_process = process_find_uid(uid);
+  if(storage_process == NULL) {
+    start_storage_process(uid, fd, buf, buf_len + 1);
+  } else {
+    send_fd_to_process(storage_process, fd, buf, buf_len + 1);
+  }
 
   free(buf);
 

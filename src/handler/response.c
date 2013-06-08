@@ -48,7 +48,6 @@ void send_error_response(struct rs_request *request, short status) {
 }
 
 static void continue_response(evutil_socket_t fd, short events, void *arg) {
-  log_debug("ready to write some bytes");
   struct rs_request *request = arg;
   int buflen = evbuffer_get_length(request->response_buf);
   if(buflen > 0) {
@@ -60,46 +59,37 @@ static void continue_response(evutil_socket_t fd, short events, void *arg) {
       log_debug("wrote %d bytes", buflen);
     }
   } else if(request->response_ended) {
-    log_debug("no more bytes in the buffer, closing.");
     free_request(request);
   }
 }
 
 static void setup_response(struct rs_request *request) {
-  log_debug("setting up response");
   request->response_buf = evbuffer_new();
-  log_debug("created response buffer");
   request->write_event = event_new(request->proc->base, request->fd,
                                    EV_WRITE | EV_PERSIST,
                                    continue_response, request);
   event_add(request->write_event, NULL);
-  log_debug("set up write event");
 }
 
 static void response_send_status(struct rs_request *request, short status) {
-  log_debug("enqueued status line (%d)", status);
   response_write(request, "HTTP/1.1 %d %s\n", status, status_code_to_str(status));
 }
 
 static void response_send_header(struct rs_request *request, const char *key, const char *value) {
-  log_debug("enqueued header line (%s: %s)", key, value);
   response_write(request, "%s: %s\n", key, value);
 }
 
 static void response_end_header(struct rs_request *request) {
-  log_debug("enqueued header end");
   response_write(request, "\n");
 }
 
 static void response_write(struct rs_request *request, const char *format, ...) {
   va_list ap;
   va_start(ap, format);
-  int count = evbuffer_add_vprintf(request->response_buf, format, ap);
-  log_debug("enqueued %d bytes", count);
+  evbuffer_add_vprintf(request->response_buf, format, ap);
   va_end(ap);
 }
 
 static void response_end(struct rs_request *request) {
-  log_debug("marked response as done");
   request->response_ended = 1;
 }

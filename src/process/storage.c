@@ -300,7 +300,8 @@ static void read_signal(evutil_socket_t sfd, short events, void *_process_info) 
   }
 }
 
-int storage_main(struct rs_process_info *process_info) {
+int storage_main(struct rs_process_info *process_info,
+                 int initial_fd, char *initial_buf, int initial_buf_len) {
   log_info("starting process: storage (uid: %ld)", process_info->uid);
 
   /** CHROOT TO HOME DIRECTORY **/
@@ -312,14 +313,23 @@ int storage_main(struct rs_process_info *process_info) {
     exit(EXIT_FAILURE);
   }
 
+  log_debug("changed root to \"%s\"", user_entry->pw_dir);
+
+  /** SET SOME OPTIONS **/
+
+  // set process name
   char process_name[16];
   snprintf(process_name, 16, "rs-serve [user: %s]", user_entry->pw_name);
-
   if(prctl(PR_SET_NAME, process_name, 0, 0, 0) != 0) {
     log_error("Failed to set process name: %s", strerror(errno));
   }
 
-  log_debug("changed root to \"%s\"", user_entry->pw_dir);
+  // tell kernel to send us SIGHUP when the parent process dies
+  // for whatever reason.
+  if(prctl(PR_SET_PDEATHSIG, SIGHUP, 0, 0, 0) != 0) {
+    log_error("Failed to specify parent-death-signal: %s", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
 
   /** DROP PRIVILEGES **/
 
@@ -363,6 +373,11 @@ int storage_main(struct rs_process_info *process_info) {
                                          receive_request_fd,
                                          process_info);
   event_add(socket_event, NULL);
+
+  if(initial_fd > 0) {
+    // got initial fd passed. -> process it immediately!
+    process_request(process_info, initial_fd, initial_buf, initial_buf_len);
+  }
 
   /** RUN EVENT LOOP **/
 

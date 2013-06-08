@@ -75,7 +75,8 @@ void stop_process(evutil_socket_t fd, short events, void *_process_info) {
   kill(process_info->pid, SIGHUP);
 }
 
-int start_process(struct rs_process_info *info, rs_process_main process_main) {
+int start_process(struct rs_process_info *info, rs_process_main process_main,
+                  int initial_fd, char *initial_buf, int initial_buf_len) {
   // setup socket pair
   int sock_fds[2] = { 0, 0 };
   if(socketpair(AF_UNIX, SOCK_DGRAM, 0, sock_fds) != 0) {
@@ -98,7 +99,7 @@ int start_process(struct rs_process_info *info, rs_process_main process_main) {
   if(child_pid == 0) {
     close(info->socket_in);
     // run processes main()
-    exit(process_main(info));
+    exit(process_main(info, initial_fd, initial_buf, initial_buf_len));
   } else if(child_pid > 0) {
     close(info->socket_out);
     info->pid = child_pid;
