@@ -26,7 +26,7 @@ static void print_help(const char *progname) {
           "                                  process and exit. If you don't use this in\n"
           "                                  combination with the --log-file option, all\n"
           "                                  future output will be lost.\n"
-          "  --pid-file                    - Write PID to given file.\n"
+          "  --pid-file=<file>             - Write PID to given file.\n"
           "  --stop                        - Stop a running rs-serve process. The process\n"
           "                                  is identified by the PID file specified via\n"
           "                                  the --pid-file option. NOTE: the --stop option\n"
