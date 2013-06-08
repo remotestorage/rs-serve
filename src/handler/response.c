@@ -59,6 +59,8 @@ static void continue_response(evutil_socket_t fd, short events, void *arg) {
       log_debug("wrote %d bytes", buflen);
     }
   } else if(request->response_ended) {
+    // response completely sent.
+    log_info("GET %s -> %d", request->path, request->status);
     free_request(request);
   }
 }
@@ -72,6 +74,7 @@ static void setup_response(struct rs_request *request) {
 }
 
 static void response_send_status(struct rs_request *request, short status) {
+  request->status = status;
   response_write(request, "HTTP/1.1 %d %s\n", status, status_code_to_str(status));
 }
 

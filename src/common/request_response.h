@@ -41,7 +41,8 @@ struct rs_request {
   int buflen;
 
   struct evbuffer *response_buf;
-  int response_ended;
+  short response_ended;
+  short status;
 };
 
 void free_header(struct rs_header *header);
