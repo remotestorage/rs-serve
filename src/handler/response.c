@@ -58,6 +58,12 @@ void send_error_response(struct rs_request *request, short status) {
   response_end(request);
 }
 
+// terminate the response body w/o sending any data
+// (used for HEAD requests)
+void send_response_empty(struct rs_request *request) {
+  response_end(request);
+}
+
 // helper implementations
 
 static void continue_response(evutil_socket_t fd, short events, void *arg) {

@@ -115,13 +115,15 @@ static int serve_directory(struct rs_request *request) {
   closedir(dir);
   return 0;
 }
-#include <poll.h>
-// serve a file response for the given request
-int serve_file(struct rs_request *request, struct stat *stat_buf) {
-  const char *mime_type = magic_file(magic_cookie, request->path);
+
+int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
   if(mime_type == NULL) {
-    log_error("magic failed: %s", magic_error(magic_cookie));
-    mime_type = "application/octet-stream";
+    log_debug("mime type not given, detecting...");
+    mime_type = magic_file(magic_cookie, request->path);
+    if(mime_type == NULL) {
+      log_error("magic failed: %s", magic_error(magic_cookie));
+      mime_type = "application/octet-stream";
+    }
   }
   struct rs_header content_type_header = {
     .key = "Content-Type",
@@ -145,23 +147,21 @@ int serve_file(struct rs_request *request, struct stat *stat_buf) {
   };
   send_response_head(request, 200, &length_header);
   free(length_string);
+  return 0;
+}
 
+// serve a file body for the given request
+int serve_file(struct rs_request *request, struct stat *stat_buf) {
   int fd = open(request->path, O_RDONLY | O_NONBLOCK);
   if(fd < 0) {
     log_error("open() failed: %s", strerror(errno));
     return 500;
   }
-
   send_response_body_fd(request, fd);
-
   return 0;
 }
 
-int storage_handle_head(struct rs_request *request) {
-  return 501;
-}
-
-int storage_handle_get(struct rs_request *request) {
+static int handle_get_or_head(struct rs_request *request, int include_body) {
   // stat
   struct stat stat_buf;
   if(stat(request->path, &stat_buf) != 0) {
@@ -180,7 +180,16 @@ int storage_handle_get(struct rs_request *request) {
       return 404;
     }
     // directory found
-    return serve_directory(request);
+    if(include_body) {
+      return serve_directory(request);
+    } else {
+      int head_result = serve_file_head(request, &stat_buf, "application/json");
+      if(head_result != 0) {
+        return head_result;
+      }
+      send_response_empty(request);
+      return 0;
+    }
   } else {
     // file requested
     if(S_ISDIR(stat_buf.st_mode)) {
@@ -188,8 +197,25 @@ int storage_handle_get(struct rs_request *request) {
       return 404;
     }
     // file found
-    return serve_file(request, &stat_buf);
+    int head_result = serve_file_head(request, &stat_buf, NULL);
+    if(head_result != 0) {
+      return head_result;
+    }
+    if(include_body) {
+      return serve_file(request, &stat_buf);
+    } else {
+      send_response_empty(request);
+      return 0;
+    }
   }
+}
+
+int storage_handle_head(struct rs_request *request) {
+  return handle_get_or_head(request, 0);
+}
+
+int storage_handle_get(struct rs_request *request) {
+  return handle_get_or_head(request, 1);
 }
 
 int storage_handle_put(struct rs_request *request) {
