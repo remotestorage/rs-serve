@@ -43,7 +43,7 @@ struct rs_process_info *process_remove(pid_t pid) {
   } else {
     return NULL;
   }
-};
+}
 
 struct rs_process_info *process_find_uid(uid_t uid) {
   log_debug("PROCESS_FIND({ uid:%ld })", uid);

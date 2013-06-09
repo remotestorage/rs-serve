@@ -15,6 +15,7 @@
 // this is part of libevhtp
 const char *status_code_to_str(evhtp_res code);
 
+// prototypes. implementation at end of file.
 static void setup_response(struct rs_request *request);
 static void response_send_status(struct rs_request *request, short status);
 static void response_send_header(struct rs_request *request, const char *key, const char *value);
@@ -22,6 +23,9 @@ static void response_end_header(struct rs_request *request);
 static void response_write(struct rs_request *request, const char *format, ...);
 static void response_end(struct rs_request *request);
 
+// public interface
+
+// send status & header. To send multiple headers chain them using header->next.
 void send_response_head(struct rs_request *request, short status, struct rs_header *header) {
   setup_response(request);
   response_send_status(request, status);
@@ -31,8 +35,15 @@ void send_response_head(struct rs_request *request, short status, struct rs_head
   response_end_header(request);
 }
 
+// copy from given buffer into the response buffer.
 void send_response_body(struct rs_request *request, struct evbuffer *buf) {
   evbuffer_remove_buffer(buf, request->response_buf, evbuffer_get_length(buf));
+  response_end(request);
+}
+
+// copy from given file descriptor into response buffer.
+void send_response_body_fd(struct rs_request *request, int fd) {
+  while(evbuffer_read(request->response_buf, fd, 4096) > 0);
   response_end(request);
 }
 
@@ -46,6 +57,8 @@ void send_error_response(struct rs_request *request, short status) {
   response_write(request, status_code_to_str(status));
   response_end(request);
 }
+
+// helper implementations
 
 static void continue_response(evutil_socket_t fd, short events, void *arg) {
   struct rs_request *request = arg;

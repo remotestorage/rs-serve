@@ -115,10 +115,46 @@ static int serve_directory(struct rs_request *request) {
   closedir(dir);
   return 0;
 }
-
+#include <poll.h>
 // serve a file response for the given request
-int serve_file(struct rs_request *request) {
-  return 501;
+int serve_file(struct rs_request *request, struct stat *stat_buf) {
+  const char *mime_type = magic_file(magic_cookie, request->path);
+  if(mime_type == NULL) {
+    log_error("magic failed: %s", magic_error(magic_cookie));
+    mime_type = "application/octet-stream";
+  }
+  struct rs_header content_type_header = {
+    .key = "Content-Type",
+    // header won't be freed (it's completely stack based / constant),
+    // so cast is valid here to satisfy type check.
+    // (struct rs_header.value cannot be constant, because in the case of a request
+    //  header it will be free()'d at some point)
+    .value = (char*)mime_type,
+    .next = NULL
+  };
+  char *length_string = malloc(24);
+  if(length_string == NULL) {
+    log_error("malloc() failed: %s", strerror(errno));
+    return 500;
+  }
+  snprintf(length_string, 24, "%ld", stat_buf->st_size);
+  struct rs_header length_header = {
+    .key = "Content-Length",
+    .value = length_string,
+    .next = &content_type_header
+  };
+  send_response_head(request, 200, &length_header);
+  free(length_string);
+
+  int fd = open(request->path, O_RDONLY | O_NONBLOCK);
+  if(fd < 0) {
+    log_error("open() failed: %s", strerror(errno));
+    return 500;
+  }
+
+  send_response_body_fd(request, fd);
+
+  return 0;
 }
 
 int storage_handle_head(struct rs_request *request) {
@@ -152,7 +188,7 @@ int storage_handle_get(struct rs_request *request) {
       return 404;
     }
     // file found
-    return serve_file(request);
+    return serve_file(request, &stat_buf);
   }
 }
 

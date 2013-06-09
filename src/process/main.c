@@ -164,9 +164,21 @@ static void accept_connection(struct evconnlistener *listener, evutil_socket_t f
   event_add(temp_req->event, NULL);
 }
 
+magic_t magic_cookie;
+
 int main(int argc, char **argv) {
 
   init_config(argc, argv);
+
+  /** OPEN MAGIC DATABASE **/
+
+  magic_cookie = magic_open(MAGIC_MIME_TYPE);
+  if(magic_load(magic_cookie, RS_MAGIC_DATABASE) != 0) {
+    log_error("Failed to load magic database: %s", magic_error(magic_cookie));
+    exit(EXIT_FAILURE);
+  }
+
+  /** CHECK IF WE ARE ROOT **/
 
   if(getuid() != 0) {
     log_error("Sorry, you need to run this as user root for (so the child processes are able to chroot(2)).");
