@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
 
   /** OPEN MAGIC DATABASE **/
 
-  magic_cookie = magic_open(MAGIC_MIME_TYPE);
+  magic_cookie = magic_open(MAGIC_MIME);
   if(magic_load(magic_cookie, RS_MAGIC_DATABASE) != 0) {
     log_error("Failed to load magic database: %s", magic_error(magic_cookie));
     exit(EXIT_FAILURE);

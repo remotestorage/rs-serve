@@ -24,7 +24,7 @@
 
 static char *escape_name(const char *name);
 static char *make_etag(struct stat *stat_buf);
-static int serve_directory(struct rs_request *request);
+static int serve_directory(struct rs_request *request, struct stat *stat_buf);
 static int serve_file_head(struct rs_request *request, struct stat *stat_buf,
                            const char *mime_type);
 static int serve_file(struct rs_request *request, struct stat *stat_buf);
@@ -81,7 +81,7 @@ static char *escape_name(const char *name) {
 }
 
 // serve a directory response for the given request
-static int serve_directory(struct rs_request *request) {
+static int serve_directory(struct rs_request *request, struct stat *stat_buf) {
   struct evbuffer *buf = evbuffer_new();
   if(buf == NULL) {
     log_error("evbuffer_new() failed: %s", strerror(errno));
@@ -141,25 +141,104 @@ static int serve_directory(struct rs_request *request) {
     evbuffer_add(buf, "{", 1);
   }
   evbuffer_add(buf, "}", 1);
-  struct rs_header header = {
+  struct rs_header type_header = {
     .key = "Content-Type",
     .value = "application/json",
     .next = NULL
   };
-  send_response_head(request, 200, &header);
+  struct rs_header etag_header = {
+    .key = "ETag",
+    .value = make_etag(stat_buf),
+    .next = &type_header
+  };
+  if(etag_header.value == NULL) {
+    log_error("make_etag() failed");
+    free(entryp);
+    closedir(dir);
+    return 500;
+  }
+  send_response_head(request, 200, &etag_header);
+  free(etag_header.value);
   send_response_body(request, buf);
   free(entryp);
   closedir(dir);
   return 0;
 }
 
-static int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
+static char *get_xattr(const char *path, const char *key, int maxlen) {
+  int len = 32;
+  char *value = malloc(32);
+  for(value = malloc(len);len<=maxlen;value = realloc(value, len+=16)) {
+    if(value == NULL) {
+      log_error("malloc() / realloc() failed: %s", strerror(errno));
+      return NULL;
+    }
+    if(getxattr(path, key, value, len) > 0) {
+      return value;
+    } else {
+      if(errno == ERANGE) {
+        // buffer too small.
+        continue;
+      } else if(errno == ENOATTR) {
+        // attribute not set
+        free(value);
+        return NULL;
+      } else if(errno == ENOTSUP) {
+        // xattr not supported
+        log_error("File system doesn't support extended attributes! You may want to use another one.");
+        free(value);
+        return NULL;
+      } else {
+        log_error("Unexpected error while getting %s attribute: %s", key, strerror(errno));
+        free(value);
+        return NULL;
+      }
+    }
+  }
+  log_error("%s attribute seems to be longer than %d bytes. That is simply unreasonable.", key, maxlen);
+  free(value);
+  return NULL;
+}
+
+static char *mime_type_from_xattr(const char *path) {
+  char *mime_type = get_xattr(path, "user.mime_type", 128);
   if(mime_type == NULL) {
-    log_debug("mime type not given, detecting...");
-    mime_type = magic_file(magic_cookie, request->path);
+    return NULL;
+  }
+  char *charset = get_xattr(path, "user.charset", 64);
+  if(charset == NULL) {
+    return mime_type;
+  }
+  int mt_len = strlen(mime_type);
+  char *full_mime_type = realloc(mime_type, mt_len + strlen(charset) + 10 + 1);
+  if(full_mime_type == NULL) {
+    log_error("realloc() failed: %s", strerror(errno));
+    free(charset);
+    return mime_type;
+  }
+  sprintf(full_mime_type + mt_len, "; charset=%s", charset);
+  free(charset);
+  return full_mime_type;
+}  
+
+static int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
+  int free_mime_type = 0;
+  // mime type is either passed in ... (such as for directory listings)
+  if(mime_type == NULL) {
+    // ... or detected based on xattr
+    mime_type = mime_type_from_xattr(request->path);
     if(mime_type == NULL) {
-      log_error("magic failed: %s", magic_error(magic_cookie));
-      mime_type = "application/octet-stream";
+      // ... or guessed by libmagic
+      log_debug("mime type not given, detecting...");
+      mime_type = magic_file(magic_cookie, request->path);
+      if(mime_type == NULL) {
+        // ... or defaulted to "application/octet-stream"
+        log_error("magic failed: %s", magic_error(magic_cookie));
+        mime_type = "application/octet-stream; charset=binary";
+      }
+    } else {
+      // xattr detected mime type and allocated memory for it
+      free_mime_type = 1;
     }
   }
   struct rs_header content_type_header = {
@@ -196,6 +275,9 @@ static int serve_file_head(struct rs_request *request, struct stat *stat_buf, co
   send_response_head(request, 200, &etag_header);
   free(etag_string);
   free(length_string);
+  if(free_mime_type) {
+    free((char*)mime_type);
+  }
   return 0;
 }
 
@@ -230,7 +312,7 @@ static int handle_get_or_head(struct rs_request *request, int include_body) {
     }
     // directory found
     if(include_body) {
-      return serve_directory(request);
+      return serve_directory(request, &stat_buf);
     } else {
       int head_result = serve_file_head(request, &stat_buf, "application/json");
       if(head_result != 0) {

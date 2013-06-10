@@ -59,6 +59,10 @@
 // libmagic headers
 #include <magic.h>
 
+// libattr headers
+
+#include <attr/xattr.h>
+
 // rs-serve headers
 
 #include "version.h"
