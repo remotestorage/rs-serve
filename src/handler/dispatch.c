@@ -45,6 +45,11 @@ int dispatch_request(struct evbuffer *buffer, int fd) {
   char *http_version = strtok_r(NULL, "\n", &saveptr);
   char *rest = strtok_r(NULL, "", &saveptr);
 
+  if(strncmp(http_version, "HTTP/1.", 7) != 0) {
+    log_error("Invalid request (HTTP version specified as \"%s\")", http_version);
+    return -1;
+  }
+
   /* log_debug("Parsed something. Let's see:\n  verb: %s\n  username: %s\n  path: %s\n  http version: %s\n  rest: %s", */
   /*           verb, username, file_path, http_version, rest); */
 
