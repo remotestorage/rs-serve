@@ -34,10 +34,6 @@ void free_request(struct rs_request *req) {
     event_del(req->write_event);
     event_free(req->write_event);
   }
-  if(req->file_event) {
-    event_del(req->file_event);
-    event_free(req->file_event);
-  }
   if(req->path) {
     free(req->path);
   }

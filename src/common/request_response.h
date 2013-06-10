@@ -30,8 +30,6 @@ struct rs_request {
   // the event used to write to the socket, once we started
   // assembling the response.
   struct event *write_event;
-  // event used to read or write a file on disk
-  struct event *file_event;
   // chained list of headers
   struct rs_header *headers;
 
