@@ -22,6 +22,43 @@
  * These functions are only called from storage processes.
  */
 
+static char *escape_name(const char *name);
+static char *make_etag(struct stat *stat_buf);
+static int serve_directory(struct rs_request *request);
+static int serve_file_head(struct rs_request *request, struct stat *stat_buf,
+                           const char *mime_type);
+static int serve_file(struct rs_request *request, struct stat *stat_buf);
+static int handle_get_or_head(struct rs_request *request, int include_body);
+
+
+int storage_handle_head(struct rs_request *request) {
+  return handle_get_or_head(request, 0);
+}
+
+int storage_handle_get(struct rs_request *request) {
+  return handle_get_or_head(request, 1);
+}
+
+int storage_handle_put(struct rs_request *request) {
+  return 501;
+}
+
+int storage_handle_delete(struct rs_request *request) {
+  return 501;
+}
+
+
+
+static char *make_etag(struct stat *stat_buf) {
+  char *etag = malloc(21);
+  if(etag == NULL) {
+    log_error("malloc() failed: %s", strerror(errno));
+    return NULL;
+  }
+  snprintf(etag, 20, "%lld", ((long long int)stat_buf->st_mtime) * 1000);
+  return etag;
+}
+
 // escape backslashes (/) and double quotes (") to put the given string
 // in quoted JSON strings.
 static char *escape_name(const char *name) {
@@ -116,7 +153,7 @@ static int serve_directory(struct rs_request *request) {
   return 0;
 }
 
-int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
+static int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
   if(mime_type == NULL) {
     log_debug("mime type not given, detecting...");
     mime_type = magic_file(magic_cookie, request->path);
@@ -145,13 +182,25 @@ int serve_file_head(struct rs_request *request, struct stat *stat_buf, const cha
     .value = length_string,
     .next = &content_type_header
   };
-  send_response_head(request, 200, &length_header);
+  char *etag_string = make_etag(stat_buf);
+  if(etag_string == NULL) {
+    log_error("make_etag() failed");
+    free(length_string);
+    return 500;
+  }
+  struct rs_header etag_header = {
+    .key = "ETag",
+    .value = etag_string,
+    .next = &length_header
+  };
+  send_response_head(request, 200, &etag_header);
+  free(etag_string);
   free(length_string);
   return 0;
 }
 
 // serve a file body for the given request
-int serve_file(struct rs_request *request, struct stat *stat_buf) {
+static int serve_file(struct rs_request *request, struct stat *stat_buf) {
   int fd = open(request->path, O_RDONLY | O_NONBLOCK);
   if(fd < 0) {
     log_error("open() failed: %s", strerror(errno));
@@ -208,20 +257,4 @@ static int handle_get_or_head(struct rs_request *request, int include_body) {
       return 0;
     }
   }
-}
-
-int storage_handle_head(struct rs_request *request) {
-  return handle_get_or_head(request, 0);
-}
-
-int storage_handle_get(struct rs_request *request) {
-  return handle_get_or_head(request, 1);
-}
-
-int storage_handle_put(struct rs_request *request) {
-  return 501;
-}
-
-int storage_handle_delete(struct rs_request *request) {
-  return 501;
 }
