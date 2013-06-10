@@ -29,6 +29,7 @@ static int serve_file_head(struct rs_request *request, struct stat *stat_buf,
                            const char *mime_type);
 static int serve_file(struct rs_request *request, struct stat *stat_buf);
 static int handle_get_or_head(struct rs_request *request, int include_body);
+static int content_type_to_xattr(int fd, const char *content_type);
 
 
 int storage_handle_head(struct rs_request *request) {
@@ -39,15 +40,109 @@ int storage_handle_get(struct rs_request *request) {
   return handle_get_or_head(request, 1);
 }
 
-int storage_handle_put(struct rs_request *request) {
-  return 501;
+int storage_begin_put(struct rs_request *request) {
+  char *path_copy = strdup(request->path);
+  if(path_copy == NULL) {
+    log_error("strdup() failed: %s", strerror(errno));
+    return 500;
+  }
+  char *dir_path = dirname(path_copy);
+  char *saveptr = NULL;
+  char *dir_name;
+  int dirfd = open("/", O_RDONLY), prevfd;
+  if(dirfd == -1) {
+    log_error("failed to open() root directory: %s", strerror(errno));
+    free(path_copy);
+    return 500;
+  }
+  struct stat dir_stat;
+  for(dir_name = strtok_r(dir_path, "/", &saveptr);
+      dir_name != NULL;
+      dir_name = strtok_r(NULL, "/", &saveptr)) {
+    if(fstatat(dirfd, dir_name, &dir_stat, 0) == 0) {
+      if(! S_ISDIR(dir_stat.st_mode)) {
+        // exists, but not a directory
+        log_error("Can't PUT to %s, found a non-directory parent.", request->path);
+        close(dirfd);
+        free(path_copy);
+        return 400;
+      } else {
+        // directory exists
+      }
+    } else {
+      if(mkdirat(dirfd, dir_name, S_IRWXU | S_IRWXG) != 0) {
+        log_error("mkdirat() failed: %s", strerror(errno));
+        close(dirfd);
+        free(path_copy);
+        return 500;
+      }
+    }
+    prevfd = dirfd;
+    dirfd = openat(prevfd, dir_name, O_RDONLY);
+    close(prevfd);
+    if(dirfd == -1) {
+      log_error("failed to openat() next directory (\"%s\"): %s",
+                dir_name, strerror(errno));
+      free(path_copy);
+      return 500;
+    }
+  }
+
+  // dirname() possibly made previous copy unusable
+  strcpy(path_copy, request->path);
+  char *file_name = basename(path_copy);
+
+  // open (and possibly create) file
+  int fd = openat(dirfd, file_name,
+                  O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
+                  RS_FILE_CREATE_MODE);
+  free(path_copy);
+  close(dirfd);
+
+  if(fd == -1) {
+    log_error("openat() failed to open file \"%s\": %s", file_name, strerror(errno));
+    return 500;
+  }
+
+  request->file_fd = fd;
+
+  return 0;
+}
+
+int storage_end_put(struct rs_request *request) {
+  struct stat stat_buf;
+  log_debug("fstatting now");
+  if(fstat(request->file_fd, &stat_buf) != 0) {
+    log_error("fstat() after PUT failed: %s", strerror(errno));
+    return 500;
+  }
+  log_debug("trying to find content-type header");
+  struct rs_header *header;
+  char *content_type = "application/octet-stream; charset=binary";
+  for(header = request->headers;
+      header != NULL;
+      header = header->next) {
+    if(strcmp(header->key, "Content-Type") == 0) {
+      log_debug("got content type header value: %s", header->value);
+      content_type = header->value;
+      break;
+    }
+  }
+  if(content_type_to_xattr(request->file_fd, content_type) != 0) {
+    log_error("Setting xattr for content type failed. Ignoring.");
+  }
+  close(request->file_fd);
+  int head_result = serve_file_head(request, &stat_buf, content_type);
+  if(head_result != 0) {
+    return head_result;
+  }
+  send_response_empty(request);
+  return 0;
 }
 
 int storage_handle_delete(struct rs_request *request) {
   return 501;
 }
-
-
 
 static char *make_etag(struct stat *stat_buf) {
   char *etag = malloc(21);
@@ -173,7 +268,9 @@ static char *get_xattr(const char *path, const char *key, int maxlen) {
       log_error("malloc() / realloc() failed: %s", strerror(errno));
       return NULL;
     }
-    if(getxattr(path, key, value, len) > 0) {
+    int actual_len = getxattr(path, key, value, len);
+    log_debug("getxattr() for key %s returned actual length of %d bytes", key, actual_len);
+    if(actual_len > 0) {
       return value;
     } else {
       if(errno == ERANGE) {
@@ -200,7 +297,7 @@ static char *get_xattr(const char *path, const char *key, int maxlen) {
   return NULL;
 }
 
-static char *mime_type_from_xattr(const char *path) {
+static char *content_type_from_xattr(const char *path) {
   char *mime_type = get_xattr(path, "user.mime_type", 128);
   if(mime_type == NULL) {
     return NULL;
@@ -210,23 +307,63 @@ static char *mime_type_from_xattr(const char *path) {
     return mime_type;
   }
   int mt_len = strlen(mime_type);
-  char *full_mime_type = realloc(mime_type, mt_len + strlen(charset) + 10 + 1);
-  if(full_mime_type == NULL) {
+  char *content_type = realloc(mime_type, mt_len + strlen(charset) + 10 + 1);
+  if(content_type == NULL) {
     log_error("realloc() failed: %s", strerror(errno));
     free(charset);
     return mime_type;
   }
-  sprintf(full_mime_type + mt_len, "; charset=%s", charset);
+  log_debug("content_type now: %s (also charset is \"%s\")", content_type, charset);
+  sprintf(content_type + mt_len, "; charset=%s", charset);
   free(charset);
-  return full_mime_type;
-}  
+  return content_type;
+}
+
+static int content_type_to_xattr(int fd, const char *content_type) {
+  char *content_type_copy = strdup(content_type), *saveptr = NULL;
+  if(content_type_copy == NULL) {
+    log_error("strdup() failed: %s", strerror(errno));
+    return -1;
+  }
+  char *mime_type = strtok_r(content_type_copy, ";", &saveptr);
+  log_debug("extracted mime type: %s", mime_type);
+  char *rest = strtok_r(NULL, "", &saveptr);
+  char *charset_begin = NULL, *charset = NULL;
+  if(rest) {
+    charset_begin = strstr(rest, "charset=");
+    if(charset_begin) {
+      charset = charset_begin + 8;
+      log_debug("extracted charset: %s", charset);
+    }
+  }
+  if(charset == NULL) {
+    // FIXME: should this rather be binary or us-ascii?
+    charset = "UTF-8";
+    log_debug("guessed charset: %s", charset);
+  }
+  if(fsetxattr(fd, "user.mime_type", mime_type, strlen(mime_type) + 1, 0) != 0) {
+    log_error("fsetxattr() failed: %s", strerror(errno));
+    free(content_type_copy);
+    return -1;
+  }
+  log_debug("fsetxattr (mime_type) done");
+  if(fsetxattr(fd, "user.charset", mime_type, strlen(charset) + 1, 0) != 0) {
+    log_error("fsetxattr() failed: %s", strerror(errno));
+    free(content_type_copy);
+    return -1;
+  }
+  log_debug("fsetxattr (charset) done");
+  free(content_type_copy);
+  return 0;
+}
+
 
 static int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
   int free_mime_type = 0;
   // mime type is either passed in ... (such as for directory listings)
   if(mime_type == NULL) {
     // ... or detected based on xattr
-    mime_type = mime_type_from_xattr(request->path);
+    mime_type = content_type_from_xattr(request->path);
     if(mime_type == NULL) {
       // ... or guessed by libmagic
       log_debug("mime type not given, detecting...");

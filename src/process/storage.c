@@ -45,22 +45,6 @@ int hook_on_hdrs_begin(htparser *parser) {
 }
 int hook_on_hdrs_complete(htparser *parser) {
   log_debug("HOOK: on_hdrs_complete");
-  return 0;
-}
-int hook_on_new_chunk(htparser *parser) {
-  log_debug("HOOK: on_new_chunk");
-  return 0;
-}
-int hook_on_chunk_complete(htparser *parser) {
-  log_debug("HOOK: on_chunk_complete");
-  return 0;
-}
-int hook_on_chunks_complete(htparser *parser) {
-  log_debug("HOOK: on_chunks_complete");
-  return 0;
-}
-int hook_on_msg_complete(htparser *parser) {
-  log_debug("HOOK: on_msg_complete");
   log_debug("Got headers:");
   struct rs_request *request = htparser_get_userdata(parser);
   struct rs_header *header;
@@ -77,7 +61,7 @@ int hook_on_msg_complete(htparser *parser) {
     status = storage_handle_get(request);
     break;
   case htp_method_PUT:
-    status = storage_handle_put(request);
+    status = storage_begin_put(request);
     break;
   case htp_method_DELETE:
     status = storage_handle_delete(request);
@@ -95,6 +79,35 @@ int hook_on_msg_complete(htparser *parser) {
   } else {
     return 0;
   }
+}
+int hook_on_new_chunk(htparser *parser) {
+  log_debug("HOOK: on_new_chunk");
+  return 0;
+}
+int hook_on_chunk_complete(htparser *parser) {
+  log_debug("HOOK: on_chunk_complete");
+  return 0;
+}
+int hook_on_chunks_complete(htparser *parser) {
+  log_debug("HOOK: on_chunks_complete");
+  return 0;
+}
+int hook_on_msg_complete(htparser *parser) {
+  log_debug("HOOK: on_msg_complete");
+  struct rs_request *request = htparser_get_userdata(parser);
+  enum htp_method method = htparser_get_method(parser);
+  if(method == htp_method_PUT) {
+    log_debug("ending PUT");
+    int status = storage_end_put(request);
+    log_debug("got storage_end_put status: %d", status);
+    if(status != 0) {
+      send_error_response(request, status);
+      free_request(request);
+      return -1;
+    }
+  }
+  free_request(request);
+  return 0;
 }
 
 int hook_method(htparser *parser, const char *buf, size_t count) {
@@ -172,7 +185,17 @@ int hook_hostname(htparser *parser, const char *buf, size_t count) {
   return 0;
 }
 int hook_body(htparser *parser, const char *buf, size_t count) {
-  log_debug("DATA HOOK: body, data: %s", buf);
+  //log_debug("DATA HOOK: body, data: (%d bytes)", count);
+  struct rs_request *req = htparser_get_userdata(parser);
+  if(req->file_fd > 0) {
+    if(write(req->file_fd, buf, count) < 0) {
+      log_error("write() to req->file_fd failed: %s", strerror(errno));
+      return -1;
+    }
+  } else {
+    log_error("Can't write body, no file_fd found for request!");
+    return -1;
+  }
   return 0;
 }
 
@@ -212,7 +235,7 @@ static void feed_parser(evutil_socket_t fd, short events, void *_parser) {
       return;
     }
   }
-  log_debug("Feeding parser with %d bytes", nbytes);
+  //log_debug("Feeding parser with %d bytes", nbytes);
   htparser_run(parser, &parser_hooks, req->buf, nbytes);
 }
 

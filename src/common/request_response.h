@@ -40,6 +40,9 @@ struct rs_request {
   char *buf;
   int buflen;
 
+  // fd of the file to write (in case of a PUT request)
+  int file_fd;
+
   struct evbuffer *response_buf;
   short response_ended;
   short status;
