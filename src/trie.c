@@ -76,7 +76,7 @@ TrieNode *find_child(TrieNode *node, char key) {
   return NULL;
 }
 
-int trie_insert(TrieNode *parent, const char *key, void *value) {
+int trie_insert(TrieNode *parent, const char *key, void *value, void **old_value_ptr) {
   TrieNode *child;
   if(*key) {
     child = find_child(parent, *key);
@@ -91,6 +91,7 @@ int trie_insert(TrieNode *parent, const char *key, void *value) {
     }
     return trie_insert(child, ++key, value);
   } else {
+    *old_value_ptr = parent->value;
     parent->value = value;
     return 0;
   }

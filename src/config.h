@@ -75,4 +75,12 @@ extern char *rs_pid_file_path;
 extern int rs_detach;
 #define RS_DETACH rs_detach
 
+extern char *rs_home_serve_root;
+#define RS_HOME_SERVE_ROOT rs_home_serve_root
+extern int rs_home_serve_root_len;
+#define RS_HOME_SERVE_ROOT_LEN rs_home_serve_root_len
+
+extern struct rs_header rs_default_headers;
+#define RS_DEFAULT_HEADERS rs_default_headers
+
 #endif /* !RS_CONFIG_H */

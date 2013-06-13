@@ -88,6 +88,17 @@ int storage_begin_put(struct rs_request *request) {
     }
   }
 
+  char *expectation = NULL;
+  struct rs_header *header;
+  for(header = request->headers;
+      header != NULL;
+      header = header->next) {
+    if(strcmp(header->key, "Expect") == 0) {
+      expectation = header->value;
+      break;
+    }
+  }
+
   // dirname() possibly made previous copy unusable
   strcpy(path_copy, request->path);
   char *file_name = basename(path_copy);
@@ -105,6 +116,15 @@ int storage_begin_put(struct rs_request *request) {
   }
 
   request->file_fd = fd;
+
+  if(expectation != NULL) {
+    if(strcasecmp(expectation, "100-continue") == 0) {
+      send_response_head(request, 100, NULL);
+    } else {
+      log_error("Expectation \"%s\" cannot be met.", expectation);
+      return 417;
+    }
+  }
 
   return 0;
 }
@@ -239,7 +259,7 @@ static int serve_directory(struct rs_request *request, struct stat *stat_buf) {
   struct rs_header type_header = {
     .key = "Content-Type",
     .value = "application/json",
-    .next = NULL
+    .next = &RS_DEFAULT_HEADERS
   };
   struct rs_header etag_header = {
     .key = "ETag",
@@ -359,6 +379,7 @@ static int content_type_to_xattr(int fd, const char *content_type) {
 
 
 static int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
+  log_debug("serve_file_head for path %s", request->path);
   int free_mime_type = 0;
   // mime type is either passed in ... (such as for directory listings)
   if(mime_type == NULL) {
@@ -385,7 +406,7 @@ static int serve_file_head(struct rs_request *request, struct stat *stat_buf, co
     // (struct rs_header.value cannot be constant, because in the case of a request
     //  header it will be free()'d at some point)
     .value = (char*)mime_type,
-    .next = NULL
+    .next = &RS_DEFAULT_HEADERS
   };
   char *length_string = malloc(24);
   if(length_string == NULL) {

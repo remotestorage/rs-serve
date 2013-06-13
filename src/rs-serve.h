@@ -74,6 +74,7 @@
 #include "common/user.h"
 
 #include "handler/dispatch.h"
+#include "handler/request.h"
 #include "handler/storage.h"
 #include "handler/response.h"
 
@@ -88,21 +89,9 @@ void cleanup_config(void);
 
 void log_dump_state_start(void);
 void log_dump_state_end(void);
-void add_cors_headers(struct evkeyvalq *headers);
-char *generate_token(size_t bytes);
 
 /* HANDLER */
 
 void fatal_error_callback(int err);
-
-/* WEBFINGER */
-
-void webfinger_get_resource(struct evhttp_request *request, const char *address);
-void webfinger_get_hostmeta(struct evhttp_request *request);
-
-/* CSRF PROTECTION */
-
-int csrf_protection_init(struct evhttp_request *request, char **csrf_token_result);
-int csrf_protection_verify(struct evhttp_request *request, char *csrf_token);
 
 #endif /* !RS_SERVE_H */

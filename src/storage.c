@@ -249,95 +249,95 @@ void storage_get(struct evhttp_request *request, int sendbody) {
  * current umask).
  */
 void storage_put(struct evhttp_request *request) {
-  /* struct evkeyvalq *headers = evhttp_request_get_output_headers(request); */
-  /* add_cors_headers(headers); */
+  struct evkeyvalq *headers = evhttp_request_get_output_headers(request);
+  add_cors_headers(headers);
 
-  /* const char *path = EXTRACT_PATH(request); */
-  /* int path_len = strlen(path); */
+  const char *path = EXTRACT_PATH(request);
+  int path_len = strlen(path);
 
-  /* if(validate_path(request, path) != 0) { */
-  /*   return; */
-  /* } */
+  if(validate_path(request, path) != 0) {
+    return;
+  }
 
-  /* char *scope = extract_scope(path); */
-  /* if(scope == NULL) { */
-  /*   evhttp_send_error(request, HTTP_INTERNAL, NULL); */
-  /*   return; */
-  /* } */
+  char *scope = extract_scope(path);
+  if(scope == NULL) {
+    evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    return;
+  }
 
-  /* if(authorize_request(request, scope, 1) != 0) { */
-  /*   free(scope); */
-  /*   return; */
-  /* } */
-  /* free(scope); */
+  if(authorize_request(request, scope, 1) != 0) {
+    free(scope);
+    return;
+  }
+  free(scope);
 
-  /* if(path[path_len - 1] == '/') { */
-  /*   // no PUT on directories. */
-  /*   evhttp_send_error(request, HTTP_BADREQUEST, NULL); */
-  /* } else { */
-  /*   struct evbuffer *buf = evhttp_request_get_input_buffer(request); */
+  if(path[path_len - 1] == '/') {
+    // no PUT on directories.
+    evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+  } else {
+    struct evbuffer *buf = evhttp_request_get_input_buffer(request);
 
-  /*   // create parent(s) */
-  /*   char *path_copy = strdup(path); */
-  /*   char *dir_path = dirname(path_copy); */
-  /*   char *saveptr = NULL; */
-  /*   char *dir_name; */
-  /*   // directory fd for reference */
-  /*   int dirfd = open(RS_REAL_STORAGE_ROOT, O_RDONLY), prevfd; */
-  /*   if(dirfd == -1) { */
-  /*     perror("failed to open() storage root"); */
-  /*     evhttp_send_error(request, HTTP_BADREQUEST, NULL); */
-  /*     free(path_copy); */
-  /*     return; */
-  /*   } */
-  /*   struct stat dir_stat; */
-  /*   for(dir_name = strtok_r(dir_path, "/", &saveptr); */
-  /*       dir_name != NULL; */
-  /*       dir_name = strtok_r(NULL, "/", &saveptr)) { */
-  /*     if(fstatat(dirfd, dir_name, &dir_stat, 0) == 0) { */
-  /*       if(! S_ISDIR(dir_stat.st_mode)) { */
-  /*         // exists, but not a directory. */
-  /*         fprintf(stderr, "Can't PUT to %s, found a non-directory parent.\n", path); */
-  /*         evhttp_send_error(request, HTTP_BADREQUEST, NULL); */
-  /*         free(path_copy); */
-  /*         return; */
-  /*       } */
-  /*     } else { */
-  /*       // directory doesn't exist, create it. */
-  /*       if(mkdirat(dirfd, dir_name, S_IRWXU | S_IRWXG) != 0) { */
-  /*         perror("mkdirat() failed"); */
-  /*         evhttp_send_error(request, HTTP_INTERNAL, NULL); */
-  /*         free(path_copy); */
-  /*         return; */
-  /*       } */
-  /*     } */
-  /*     prevfd = dirfd; */
-  /*     dirfd = openat(prevfd, dir_name, O_RDONLY); */
-  /*     close(prevfd); */
-  /*   } */
+    // create parent(s)
+    char *path_copy = strdup(path);
+    char *dir_path = dirname(path_copy);
+    char *saveptr = NULL;
+    char *dir_name;
+    // directory fd for reference
+    int dirfd = open(RS_REAL_STORAGE_ROOT, O_RDONLY), prevfd;
+    if(dirfd == -1) {
+      perror("failed to open() storage root");
+      evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+      free(path_copy);
+      return;
+    }
+    struct stat dir_stat;
+    for(dir_name = strtok_r(dir_path, "/", &saveptr);
+        dir_name != NULL;
+        dir_name = strtok_r(NULL, "/", &saveptr)) {
+      if(fstatat(dirfd, dir_name, &dir_stat, 0) == 0) {
+        if(! S_ISDIR(dir_stat.st_mode)) {
+          // exists, but not a directory.
+          fprintf(stderr, "Can't PUT to %s, found a non-directory parent.\n", path);
+          evhttp_send_error(request, HTTP_BADREQUEST, NULL);
+          free(path_copy);
+          return;
+        }
+      } else {
+        // directory doesn't exist, create it.
+        if(mkdirat(dirfd, dir_name, S_IRWXU | S_IRWXG) != 0) {
+          perror("mkdirat() failed");
+          evhttp_send_error(request, HTTP_INTERNAL, NULL);
+          free(path_copy);
+          return;
+        }
+      }
+      prevfd = dirfd;
+      dirfd = openat(prevfd, dir_name, O_RDONLY);
+      close(prevfd);
+    }
 
-  /*   // dirname() possibly made previous copy unusable */
-  /*   strcpy(path_copy, path); */
-  /*   char *file_name = basename(path_copy); */
+    // dirname() possibly made previous copy unusable
+    strcpy(path_copy, path);
+    char *file_name = basename(path_copy);
 
-  /*   // open (and possibly create) file */
-  /*   int fd = openat(dirfd, file_name, */
-  /*                   O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC, */
-  /*                   RS_FILE_CREATE_MODE); */
-  /*   free(path_copy); */
-  /*   close(dirfd); */
-  /*   if(fd == -1) { */
-  /*     perror("openat() failed"); */
-  /*     evhttp_send_error(request, HTTP_INTERNAL, NULL); */
-  /*   } else if(evbuffer_write(buf, fd) == -1) { */
-  /*     perror("evbuffer_write() failed"); */
-  /*     evhttp_send_error(request, HTTP_INTERNAL, NULL); */
-  /*   } else { */
-  /*     // writing succeeded */
-  /*     // TODO: add ETag */
-  /*     evhttp_send_reply(request, HTTP_OK, NULL, NULL); */
-  /*   } */
-  /* } */
+    // open (and possibly create) file
+    int fd = openat(dirfd, file_name,
+                    O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
+                    RS_FILE_CREATE_MODE);
+    free(path_copy);
+    close(dirfd);
+    if(fd == -1) {
+      perror("openat() failed");
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    } else if(evbuffer_write(buf, fd) == -1) {
+      perror("evbuffer_write() failed");
+      evhttp_send_error(request, HTTP_INTERNAL, NULL);
+    } else {
+      // writing succeeded
+      // TODO: add ETag
+      evhttp_send_reply(request, HTTP_OK, NULL, NULL);
+    }
+  }
 }
 
 void storage_delete(struct evhttp_request *request) {

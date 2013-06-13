@@ -26,6 +26,10 @@ static void print_help(const char *progname) {
           "                                  process and exit. If you don't use this in\n"
           "                                  combination with the --log-file option, all\n"
           "                                  future output will be lost.\n"
+          "  --dir=<directory-name>        - Name of the directory relative to the user's\n"
+          "                                  home directory to serve data from. If this\n"
+          "                                  option isn't given, the root of the home is\n"
+          "                                  assumed.\n"
           "  --pid-file=<file>             - Write PID to given file.\n"
           "  --stop                        - Stop a running rs-serve process. The process\n"
           "                                  is identified by the PID file specified via\n"
@@ -52,15 +56,25 @@ int rs_detach = 0;
 FILE *rs_log_file = NULL;
 FILE *rs_pid_file = NULL;
 char *rs_pid_file_path = NULL;
-
+char *rs_home_serve_root = NULL;
+int rs_home_serve_root_len = 0;
 int rs_stop_other = 0;
+
+struct rs_header rs_default_headers = {
+  .key = "Access-Control-Allow-Origin",
+  .value = "*",
+  .next = &(struct rs_header){
+    .key = "Access-Control-Allow-Methods",
+    .value = "HEAD, GET, PUT, DELETE"
+  }
+};
 
 void (*current_log_debug)(const char *file, int line, char *format, ...) = NULL;
 
 static struct option long_options[] = {
   { "port", required_argument, 0, 'p' },
   { "hostname", required_argument, 0, 'n' },
-  { "group", required_argument, 0, 0 },
+  { "dir", required_argument, 0, 0 },
   { "pid-file", required_argument, 0, 0 },
   { "stop", no_argument, 0, 0 },
   { "log-file", required_argument, 0, 'f' },
@@ -139,6 +153,14 @@ void init_config(int argc, char **argv) {
         rs_stop_other = 1;
       } else if(strcmp(long_options[opt_index].name, "debug") == 0) { // --debug
         current_log_debug = do_log_debug;
+      } else if(strcmp(long_options[opt_index].name, "dir") == 0) { // --dir
+        rs_home_serve_root = optarg;
+        int len = strlen(rs_home_serve_root);
+        if(rs_home_serve_root[len - 1] == '/') {
+          // strip trailing slash.
+          rs_home_serve_root[--len] = 0;
+        }
+        rs_home_serve_root_len = len;
       }
     }
   }

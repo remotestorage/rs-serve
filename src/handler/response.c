@@ -27,6 +27,7 @@ static void response_end(struct rs_request *request);
 
 // send status & header. To send multiple headers chain them using header->next.
 void send_response_head(struct rs_request *request, short status, struct rs_header *header) {
+  log_debug("send_response_head w/ status %d", status);
   setup_response(request);
   response_send_status(request, status);
   for(; header != NULL; header = header->next) {
@@ -85,6 +86,9 @@ static void continue_response(evutil_socket_t fd, short events, void *arg) {
 }
 
 static void setup_response(struct rs_request *request) {
+  if(request->response_buf) {
+    return;
+  }
   request->response_buf = evbuffer_new();
   request->write_event = event_new(request->proc->base, request->fd,
                                    EV_WRITE | EV_PERSIST,
@@ -113,5 +117,6 @@ static void response_write(struct rs_request *request, const char *format, ...) 
 }
 
 static void response_end(struct rs_request *request) {
+  log_debug("response_end()");
   request->response_ended = 1;
 }
