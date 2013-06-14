@@ -3,7 +3,12 @@
 
 *.o
 rs-serve
+tools/add-token
+tools/remove-token
+tools/list-tokens
 
 *.log
+*.dat
 
 tmp/
+

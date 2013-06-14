@@ -83,4 +83,6 @@ extern int rs_home_serve_root_len;
 extern struct rs_header rs_default_headers;
 #define RS_DEFAULT_HEADERS rs_default_headers
 
+#define RS_MIN_UID 1000
+
 #endif /* !RS_CONFIG_H */
