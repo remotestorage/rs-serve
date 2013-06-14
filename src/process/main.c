@@ -164,24 +164,94 @@ static void accept_connection(struct evconnlistener *listener, evutil_socket_t f
   event_add(temp_req->event, NULL);
 }
 
+static evhtp_res receive_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
+  log_info("full path: %s (user: %s, path: %s, file: %s)",
+           path->full, path->match_start, path->match_end, path->file);
+  char *username = path->match_start;
+  uid_t uid = user_get_uid(username);
+  if(uid == -1) {
+    evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
+  } else if(uid == -2) {
+    evhtp_send_reply(req, EVHTP_RES_SERVERR);
+  } else if(uid < RS_MIN_UID) {
+    log_info("User not allowed: %s (uid: %ld)", username, uid);
+    evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
+  } else {
+    log_debug("User found: %s (uid: %ld)", username, uid);
+    return EVHTP_RES_OK;
+  }
+  return EVHTP_RES_PAUSE;
+}
+
+void add_cors_headers(evhtp_request_t *req) {
+  ADD_RESP_HEADER(req, "Access-Control-Allow-Origin", RS_ALLOW_ORIGIN);
+  ADD_RESP_HEADER(req, "Access-Control-Allow-Headers", RS_ALLOW_HEADERS);
+  ADD_RESP_HEADER(req, "Access-Control-Allow-Methods", RS_ALLOW_METHODS);
+}
+
+static evhtp_res handle_options(evhtp_request_t *req) {
+  evhtp_send_reply(req, EVHTP_RES_NOCONTENT);
+  return EVHTP_RES_PAUSE;
+}
+
+static evhtp_res receive_headers(evhtp_request_t *req, evhtp_headers_t *hdr, void *arg) {
+
+  add_cors_headers(req);
+
+  if(req->method == htp_method_OPTIONS) {
+    return handle_options(req);
+  }
+
+  int auth_result = authorize_request(req);
+  if(auth_result == 0) {
+    log_debug("Request authorized.");
+    return EVHTP_RES_OK;
+  } else if(auth_result == -1) {
+    log_info("Request NOT authorized.");
+    evhtp_send_reply(req, EVHTP_RES_UNAUTH);
+  } else if(auth_result == -2) {
+    log_error("An error occured while authorizing request.");
+    evhtp_send_reply(req, EVHTP_RES_SERVERR);
+  }
+  return EVHTP_RES_PAUSE;
+}
+
+static void handle_storage(evhtp_request_t *req, void *arg) {
+  evhtp_res status = 0;
+  switch(req->method) {
+  case htp_method_GET:
+    status = storage_handle_get(req);
+    break;
+  case htp_method_HEAD:
+    status = storage_handle_head(req);
+    break;
+  //case htp_method_PUT:
+  //  status = storage_handle_put(req);
+  //  break;
+  //case htp_method_DELETE:
+  //  status = storage_handle_delete(req);
+  //  break;
+  default:
+    status = EVHTP_RES_METHNALLOWED;
+  }
+  if(status != 0) {
+    evhtp_send_reply(req, status);
+  }
+}
+
 magic_t magic_cookie;
 
 int main(int argc, char **argv) {
 
   init_config(argc, argv);
 
+  open_authorizations("r");
+
   /** OPEN MAGIC DATABASE **/
 
   magic_cookie = magic_open(MAGIC_MIME);
   if(magic_load(magic_cookie, RS_MAGIC_DATABASE) != 0) {
     log_error("Failed to load magic database: %s", magic_error(magic_cookie));
-    exit(EXIT_FAILURE);
-  }
-
-  /** CHECK IF WE ARE ROOT **/
-
-  if(getuid() != 0) {
-    log_error("Sorry, you need to run this as user root for (so the child processes are able to chroot(2)).");
     exit(EXIT_FAILURE);
   }
 
@@ -209,19 +279,17 @@ int main(int argc, char **argv) {
   sin.sin_addr.s_addr = htonl(0);
   sin.sin_port = htons(RS_PORT);
 
-  struct evconnlistener *listener = evconnlistener_new_bind(rs_event_base,
-                                                            accept_connection,
-                                                            NULL,
-                                                            LEV_OPT_CLOSE_ON_FREE |
-                                                            LEV_OPT_REUSEABLE, -1,
-                                                            (struct sockaddr*)&sin,
-                                                            sizeof(sin));
-  ASSERT_NOT_NULL(listener, "evconnlistener_new_bind()");
+  evhtp_t *server = evhtp_new(rs_event_base, NULL);
 
-  // TODO: add error cb to listener
+  evhtp_callback_t *storage_cb = evhtp_set_regex_cb(server, "^/storage/([^/]+)/.*$", handle_storage, NULL);
 
-  // unfortunately required to initialize htparse internas:
-  evhtp_free(evhtp_new(rs_event_base, NULL));
+  evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_headers, receive_headers, NULL);
+  evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_path, receive_path, NULL);
+
+  if(evhtp_bind_sockaddr(server, (struct sockaddr*)&sin, sizeof(sin), 1024) != 0) {
+    log_error("evhtp_bind_sockaddr() failed: %s", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
 
   /** SETUP SIGNALS **/
 
