@@ -22,6 +22,25 @@
 #define ASSERT_ZERO(var, desc)     ASSERT((var) == 0, desc)
 #define ASSERT_NOT_EQ(a, b, desc)  ASSERT((a) != (b), desc)
 
+static const char * method_strmap[] = {
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "DELETE",
+    "MKCOL",
+    "COPY",
+    "MOVE",
+    "OPTIONS",
+    "PROPFIND",
+    "PROPATCH",
+    "LOCK",
+    "UNLOCK",
+    "TRACE",
+    "CONNECT",
+    "PATCH",
+};
+
 void handle_signal(evutil_socket_t fd, short events, void *arg) {
   log_info("handle_signal()");
   struct signalfd_siginfo siginfo;
@@ -75,93 +94,8 @@ void log_event_base_message(int severity, const char *msg) {
   }
 }
 
-struct rs_temp_request {
-  struct evbuffer *buffer;
-  struct event *event;
-  int fd;
-};
-
-void free_temp_request(struct rs_temp_request *temp_req) {
-  if(temp_req->buffer) {
-    evbuffer_free(temp_req->buffer);
-  }
-  if(temp_req->event) {
-    event_del(temp_req->event);
-    event_free(temp_req->event);
-    if(close(temp_req->fd) != 0) {
-      log_error("close() failed: %s", strerror(errno));
-    }
-  }
-  free(temp_req);
-}
-
-void read_first_line(evutil_socket_t fd, short events, void *arg) {
-  struct rs_temp_request *temp_req = arg;
-  char byte;
-  int eol_reached = 0;
-  int count;
-  for(;;) {
-    count = recv(fd, &byte, 1, 0);
-    if(count == -1) {
-      // recv() returned an error
-      if(errno == EAGAIN || errno == EWOULDBLOCK) {
-        // we've read all we could, but nothing fatal happened.
-        if(eol_reached) {
-          if(dispatch_request(temp_req->buffer, fd) != 0) {
-            log_error("Failed to dispatch request. Closing socket.");
-          }
-          free_temp_request(temp_req);
-          return;
-        }
-        return;
-      } else {
-        // some fatal error occured
-        log_error("recv() failed: %s", strerror(errno));
-        free_temp_request(temp_req);
-        return;
-      }
-    } else if(count == 0) {
-      log_error("Connection closed");
-      free_temp_request(temp_req);
-      return;
-    } else {
-      // recv() succeeded
-      if(byte == '\n') {
-        // end of line reached, ready to proceed once no more bytes to read.
-        eol_reached = 1;
-      }
-      evbuffer_add(temp_req->buffer, &byte, 1);
-    }
-  }
-}
-
-static void accept_connection(struct evconnlistener *listener, evutil_socket_t fd,
-                              struct sockaddr *address, int socklen, void *ctx) {
-  log_debug("Accepted connection");
-  // setup event to receive first line
-  struct rs_temp_request *temp_req = malloc(sizeof(struct rs_temp_request));
-  if(temp_req == NULL) {
-    close(fd);
-    log_error("Dropping connection, malloc() failed: %s\n", strerror(errno));
-    return;
-  }
-  temp_req->fd = fd;
-  temp_req->buffer = evbuffer_new();
-  if(temp_req->buffer == NULL) {
-    free(temp_req);
-    close(fd);
-    log_error("Dropping connection, evbuffer_new() failed: %s\n", strerror(errno));
-    return;
-  }
-  temp_req->event = event_new(RS_EVENT_BASE, fd, EV_READ | EV_PERSIST,
-                              read_first_line, temp_req);
-  if(temp_req->event == NULL) {
-    evbuffer_free(temp_req->buffer);
-    free(temp_req);
-    close(fd);
-    log_error("Dropping connection, event_new() failed: %s\n", strerror(errno));
-  }
-  event_add(temp_req->event, NULL);
+static evhtp_res finish_request(evhtp_request_t *req, void *arg) {
+  log_info("%s %s -> %d (fini: %d)", method_strmap[req->method], req->uri->path->full, req->status, req->finished);
 }
 
 static evhtp_res receive_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
@@ -208,11 +142,11 @@ static evhtp_res receive_headers(evhtp_request_t *req, evhtp_headers_t *hdr, voi
     return EVHTP_RES_OK;
   } else if(auth_result == -1) {
     log_info("Request NOT authorized.");
-    evhtp_send_reply(req, EVHTP_RES_UNAUTH);
+    return EVHTP_RES_UNAUTH;
   } else if(auth_result == -2) {
-    log_error("An error occured while authorizing request.");
-    evhtp_send_reply(req, EVHTP_RES_SERVERR);
-  }
+    log_error("An error occured while authorizing request.");    
+    return EVHTP_RES_SERVERR; 
+ }
   return EVHTP_RES_PAUSE;
 }
 
@@ -285,6 +219,7 @@ int main(int argc, char **argv) {
 
   evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_headers, receive_headers, NULL);
   evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_path, receive_path, NULL);
+  evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_request_fini, finish_request, NULL);
 
   if(evhtp_bind_sockaddr(server, (struct sockaddr*)&sin, sizeof(sin), 1024) != 0) {
     log_error("evhtp_bind_sockaddr() failed: %s", strerror(errno));

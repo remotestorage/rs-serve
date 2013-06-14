@@ -101,4 +101,7 @@ void fatal_error_callback(int err);
 #define ADD_RESP_HEADER(req, key, val)                                  \
   evhtp_headers_add_header(req->headers_out, evhtp_header_new(key, val, 0, 0))
 
+#define ADD_RESP_HEADER_CP(req, key, val)                                  \
+  evhtp_headers_add_header(req->headers_out, evhtp_header_new(key, val, 0, 1))
+
 #endif /* !RS_SERVE_H */

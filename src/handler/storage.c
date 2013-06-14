@@ -25,10 +25,12 @@
 static char *escape_name(const char *name);
 static char *make_etag(struct stat *stat_buf);
 static char *make_disk_path(char *user, char *path);
-static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, struct stat *stat_buf);
-static int serve_file_head(struct rs_request *request, struct stat *stat_buf,
-                           const char *mime_type);
-static int serve_file(struct rs_request *request, struct stat *stat_buf);
+static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path,
+                                 struct stat *stat_buf);
+static int serve_file_head(evhtp_request_t *request_t, char *disk_path,
+                           struct stat *stat_buf,const char *mime_type);
+static int serve_file(evhtp_request_t *request, const char *disk_path,
+                      struct stat *stat_buf);
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body);
 static int content_type_to_xattr(int fd, const char *content_type);
 
@@ -153,7 +155,7 @@ int storage_end_put(struct rs_request *request) {
     log_error("Setting xattr for content type failed. Ignoring.");
   }
   close(request->file_fd);
-  int head_result = serve_file_head(request, &stat_buf, content_type);
+  int head_result = serve_file_head(request, request->path, &stat_buf, content_type);
   if(head_result != 0) {
     return head_result;
   }
@@ -240,6 +242,8 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
     char full_path[disk_path_len + entry_len + 1];
     sprintf(full_path, "%s%s", disk_path, entryp->d_name);
     stat(full_path, &file_stat_buf);
+
+    log_debug("Listing add entry %s", entryp->d_name);
     
     char *escaped_name = escape_name(entryp->d_name);
     if(! escaped_name) {
@@ -257,7 +261,7 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
     // empty directory.
     evbuffer_add(buf, "{", 1);
   }
-  evbuffer_add(buf, "}", 1);
+  evbuffer_add(buf, "}\n", 2);
 
   char *etag = make_etag(stat_buf);
   if(etag == NULL) {
@@ -267,12 +271,13 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
     return 500;
   }
 
-  ADD_RESP_HEADER(request, "Content-Type", "application/json");
-  ADD_RESP_HEADER(request, "ETag", etag);
+  ADD_RESP_HEADER(request, "Content-Type", "application/json; charset=UTF-8");
+  ADD_RESP_HEADER_CP(request, "ETag", etag);
 
-  evhtp_send_reply_start(request, EVHTP_RES_OK);
-  evhtp_send_reply_body(request, buf);
-  evhtp_send_reply_end(request);
+  // FIXME: why do I need to use *_chunk_* here???
+  evhtp_send_reply_chunk_start(request, EVHTP_RES_OK);
+  evhtp_send_reply_chunk(request, buf);
+  evhtp_send_reply_chunk_end(request);
   free(etag);
   free(entryp);
   closedir(dir);
@@ -377,17 +382,17 @@ static int content_type_to_xattr(int fd, const char *content_type) {
 }
 
 
-static int serve_file_head(struct rs_request *request, struct stat *stat_buf, const char *mime_type) {
-  log_debug("serve_file_head for path %s", request->path);
+static int serve_file_head(evhtp_request_t *request, char *disk_path, struct stat *stat_buf, const char *mime_type) {
+  log_debug("serve_file_head for path %s", disk_path);
   int free_mime_type = 0;
   // mime type is either passed in ... (such as for directory listings)
   if(mime_type == NULL) {
     // ... or detected based on xattr
-    mime_type = content_type_from_xattr(request->path);
+    mime_type = content_type_from_xattr(disk_path);
     if(mime_type == NULL) {
       // ... or guessed by libmagic
       log_debug("mime type not given, detecting...");
-      mime_type = magic_file(magic_cookie, request->path);
+      mime_type = magic_file(magic_cookie, disk_path);
       if(mime_type == NULL) {
         // ... or defaulted to "application/octet-stream"
         log_error("magic failed: %s", magic_error(magic_cookie));
@@ -413,23 +418,20 @@ static int serve_file_head(struct rs_request *request, struct stat *stat_buf, co
     return 500;
   }
   snprintf(length_string, 24, "%ld", stat_buf->st_size);
-  struct rs_header length_header = {
-    .key = "Content-Length",
-    .value = length_string,
-    .next = &content_type_header
-  };
   char *etag_string = make_etag(stat_buf);
   if(etag_string == NULL) {
     log_error("make_etag() failed");
     free(length_string);
     return 500;
   }
-  struct rs_header etag_header = {
-    .key = "ETag",
-    .value = etag_string,
-    .next = &length_header
-  };
-  send_response_head(request, 200, &etag_header);
+
+  ADD_RESP_HEADER_CP(request, "Content-Length", length_string);
+  ADD_RESP_HEADER_CP(request, "ETag", etag_string);
+
+  log_debug("HAVE SET CONTENT LENGTH: %s", length_string);
+
+  evhtp_send_reply_chunk_start(request, 200);
+
   free(etag_string);
   free(length_string);
   if(free_mime_type) {
@@ -439,13 +441,18 @@ static int serve_file_head(struct rs_request *request, struct stat *stat_buf, co
 }
 
 // serve a file body for the given request
-static int serve_file(struct rs_request *request, struct stat *stat_buf) {
-  int fd = open(request->path, O_RDONLY | O_NONBLOCK);
+static int serve_file(evhtp_request_t *request, const char *disk_path, struct stat *stat_buf) {
+  int fd = open(disk_path, O_RDONLY | O_NONBLOCK);
   if(fd < 0) {
     log_error("open() failed: %s", strerror(errno));
     return 500;
   }
-  send_response_body_fd(request, fd);
+  struct evbuffer *buf = evbuffer_new();
+  while(evbuffer_read(buf, fd, 4096) != 0) {
+    evhtp_send_reply_chunk(request, buf);
+  }
+  evbuffer_free(buf);
+  evhtp_send_reply_chunk_end(request);
   return 0;
 }
 
@@ -507,7 +514,7 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
     if(include_body) {
       return serve_directory(request, disk_path, &stat_buf);
     } else {
-      return serve_file_head(request, &stat_buf, "application/json");
+      return serve_file_head(request, disk_path, &stat_buf, "application/json");
     }
   } else {
     // file requested
@@ -516,12 +523,12 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
       return 404;
     }
     // file found
-    int head_result = serve_file_head(request, &stat_buf, NULL);
+    int head_result = serve_file_head(request, disk_path, &stat_buf, NULL);
     if(head_result != 0) {
       return head_result;
     }
     if(include_body) {
-      return serve_file(request, &stat_buf);
+      return serve_file(request, disk_path, &stat_buf);
     } else {
       // ?
     }
