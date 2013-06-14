@@ -1,6 +1,8 @@
 
 #include "rs-serve.h"
 
+#define IS_READ(r) (r->method == htp_method_GET || r->method == htp_method_HEAD)
+
 static int match_scope(struct rs_scope *scope, evhtp_request_t *req) {
   const char *file_path = req->uri->path->match_end;
   log_debug("checking scope, name: %s, write: %d", scope->name, scope->write);
@@ -9,10 +11,8 @@ static int match_scope(struct rs_scope *scope, evhtp_request_t *req) {
       (strncmp(file_path + 1, scope->name, scope->len) == 0) ) { // other scope
     log_debug("path authorized");
     // check mode
-    if(scope->write ||
-       req->method == htp_method_GET ||
-       req->method == htp_method_HEAD) {
-       log_debug("mode authorized");
+    if(scope->write || IS_READ(req)) {
+      log_debug("mode authorized");
       return 0;
     }
   }
@@ -41,6 +41,11 @@ int authorize_request(evhtp_request_t *req) {
       }
     }
   }
-  // TODO: handle /public/ requests.
+  // special case: public reads on files (not directories) are allowed.
+  // nothing else though.
+  if(strncmp(req->uri->path->match_end, "/public/", 8) == 0 && IS_READ(req) &&
+     req->uri->path->file != NULL) {
+    return 0;
+  }
   return -1;
 }
