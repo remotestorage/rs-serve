@@ -13,8 +13,8 @@
 #ifndef RS_HANDLER_STORAGE_H
 #define RS_HANDLER_STORAGE_H
 
-int storage_handle_head(struct rs_request *request);
-int storage_handle_get(struct rs_request *request);
+evhtp_res storage_handle_head(evhtp_request_t *request);
+evhtp_res storage_handle_get(evhtp_request_t *request);
 int storage_begin_put(struct rs_request *request);
 int storage_end_put(struct rs_request *request);
 int storage_handle_delete(struct rs_request *request);

@@ -24,19 +24,20 @@
 
 static char *escape_name(const char *name);
 static char *make_etag(struct stat *stat_buf);
-static int serve_directory(struct rs_request *request, struct stat *stat_buf);
+static char *make_disk_path(char *user, char *path);
+static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, struct stat *stat_buf);
 static int serve_file_head(struct rs_request *request, struct stat *stat_buf,
                            const char *mime_type);
 static int serve_file(struct rs_request *request, struct stat *stat_buf);
-static int handle_get_or_head(struct rs_request *request, int include_body);
+static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body);
 static int content_type_to_xattr(int fd, const char *content_type);
 
 
-int storage_handle_head(struct rs_request *request) {
+evhtp_res storage_handle_head(evhtp_request_t *request) {
   return handle_get_or_head(request, 0);
 }
 
-int storage_handle_get(struct rs_request *request) {
+evhtp_res storage_handle_get(evhtp_request_t *request) {
   return handle_get_or_head(request, 1);
 }
 
@@ -196,19 +197,20 @@ static char *escape_name(const char *name) {
 }
 
 // serve a directory response for the given request
-static int serve_directory(struct rs_request *request, struct stat *stat_buf) {
+static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, struct stat *stat_buf) {
+  size_t disk_path_len = strlen(disk_path);
   struct evbuffer *buf = evbuffer_new();
   if(buf == NULL) {
     log_error("evbuffer_new() failed: %s", strerror(errno));
     return 500;
   }
-  DIR *dir = opendir(request->path);
+  DIR *dir = opendir(disk_path);
   if(dir == NULL) {
     log_error("opendir() failed: %s", strerror(errno));
     return 500;
   }
   struct dirent *entryp = malloc(offsetof(struct dirent, d_name) +
-                                 pathconf(request->path, _PC_NAME_MAX) + 1);
+                                 pathconf(disk_path, _PC_NAME_MAX) + 1);
   struct dirent *resultp = NULL;
   if(entryp == NULL) {
     log_error("malloc() failed while creating directory pointer: %s",
@@ -235,8 +237,8 @@ static int serve_directory(struct rs_request *request, struct stat *stat_buf) {
       evbuffer_add(buf, ",", 1);
     }
     entry_len = strlen(entryp->d_name);
-    char full_path[request->path_len + entry_len + 1];
-    sprintf(full_path, "%s%s", request->path, entryp->d_name);
+    char full_path[disk_path_len + entry_len + 1];
+    sprintf(full_path, "%s%s", disk_path, entryp->d_name);
     stat(full_path, &file_stat_buf);
     
     char *escaped_name = escape_name(entryp->d_name);
@@ -256,25 +258,22 @@ static int serve_directory(struct rs_request *request, struct stat *stat_buf) {
     evbuffer_add(buf, "{", 1);
   }
   evbuffer_add(buf, "}", 1);
-  struct rs_header type_header = {
-    .key = "Content-Type",
-    .value = "application/json",
-    .next = &RS_DEFAULT_HEADERS
-  };
-  struct rs_header etag_header = {
-    .key = "ETag",
-    .value = make_etag(stat_buf),
-    .next = &type_header
-  };
-  if(etag_header.value == NULL) {
+
+  char *etag = make_etag(stat_buf);
+  if(etag == NULL) {
     log_error("make_etag() failed");
     free(entryp);
     closedir(dir);
     return 500;
   }
-  send_response_head(request, 200, &etag_header);
-  free(etag_header.value);
-  send_response_body(request, buf);
+
+  ADD_RESP_HEADER(request, "Content-Type", "application/json");
+  ADD_RESP_HEADER(request, "ETag", etag);
+
+  evhtp_send_reply_start(request, EVHTP_RES_OK);
+  evhtp_send_reply_body(request, buf);
+  evhtp_send_reply_end(request);
+  free(etag);
   free(entryp);
   closedir(dir);
   return 0;
@@ -450,19 +449,55 @@ static int serve_file(struct rs_request *request, struct stat *stat_buf) {
   return 0;
 }
 
-static int handle_get_or_head(struct rs_request *request, int include_body) {
+static char *make_disk_path(char *user, char *path) {
+
+  // FIXME: use passwd->pwdir instead of /home/{user}/
+
+  // calculate maximum length of path
+  int pathlen = ( strlen(user) + strlen(path) +
+                  6 + // "/home/"
+                  1 + // another slash
+                  RS_HOME_SERVE_ROOT_LEN );
+  char *disk_path = malloc(pathlen);
+  if(disk_path == NULL) {
+    log_error("malloc() failed: %s", strerror(errno));
+    return NULL;
+  }
+  // remove all /.. segments
+  // (we don't try to resolve them, but instead treat them as garbage)
+  char *traverse_pos = NULL;
+  while((traverse_pos = strstr(path, "/..")) != NULL) {
+    int restlen = strlen(traverse_pos + 3);
+    memmove(traverse_pos, traverse_pos + 3, restlen);
+    traverse_pos[restlen] = 0;
+  }
+  // build path
+  sprintf(disk_path, "/home/%s/%s%s", user, RS_HOME_SERVE_ROOT, path);
+  return disk_path;
+}
+                      
+
+static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) {
+  char *disk_path = make_disk_path(request->uri->path->match_start,
+                                   request->uri->path->match_end);
+  if(disk_path == NULL) {
+    return 500;
+  }
+
+  log_debug("HANDLE GET OR HEAD, DISK PATH: %s", disk_path);
+
   // stat
   struct stat stat_buf;
-  if(stat(request->path, &stat_buf) != 0) {
+  if(stat(disk_path, &stat_buf) != 0) {
     if(errno != ENOENT) {
-      log_error("stat() failed for path \"%s\": %s", request->path, strerror(errno));
+      log_error("stat() failed for path \"%s\": %s", disk_path, strerror(errno));
       return 500;
     } else {
       return 404;
     }
   }
   // check for directory
-  if(request->path[request->path_len - 1] == '/') {
+  if(request->uri->path->file == NULL) {
     // directory requested
     if(! S_ISDIR(stat_buf.st_mode)) {
       // not a directory.
@@ -470,14 +505,9 @@ static int handle_get_or_head(struct rs_request *request, int include_body) {
     }
     // directory found
     if(include_body) {
-      return serve_directory(request, &stat_buf);
+      return serve_directory(request, disk_path, &stat_buf);
     } else {
-      int head_result = serve_file_head(request, &stat_buf, "application/json");
-      if(head_result != 0) {
-        return head_result;
-      }
-      send_response_empty(request);
-      return 0;
+      return serve_file_head(request, &stat_buf, "application/json");
     }
   } else {
     // file requested
@@ -493,8 +523,7 @@ static int handle_get_or_head(struct rs_request *request, int include_body) {
     if(include_body) {
       return serve_file(request, &stat_buf);
     } else {
-      send_response_empty(request);
-      return 0;
+      // ?
     }
   }
 }
