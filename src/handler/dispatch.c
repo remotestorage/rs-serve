@@ -12,18 +12,18 @@
 
 #include "rs-serve.h"
 
-void start_storage_process(uid_t uid, int initial_fd, char *initial_buf, int initial_buf_len) {
+static struct rs_process_info *start_storage_process(uid_t uid) {
   struct rs_process_info *storage_process = malloc(sizeof(struct rs_process_info));
   if(storage_process == NULL) {
     log_error("malloc() failed: %s", strerror(errno));
-    return;
+    return NULL;
   }
   storage_process->uid = uid;
-  if(start_process(storage_process, storage_main,
-                   initial_fd, initial_buf, initial_buf_len) != 0) {
+  if(start_process(storage_process, storage_main) != 0) {
     free(storage_process);
-    return;
+    return NULL;
   }
+  return storage_process;
 }
 
 static char *my_strtok(char *string, char *delim, char **saveptr) {
@@ -107,7 +107,7 @@ int dispatch_request(struct evbuffer *buffer, int fd) {
 
   int new_len = sprintf(buf, "%s /%s %s\r\n%s", verb, file_path, http_version, rest);
   log_debug("reallocating to %d bytes", new_len + 1);
-  buf = realloc(buf, new_len + 1);
+  buf = realloc(buf, ++new_len);
   if(buf == NULL) {
     log_error("BUG: realloc() failed to shrink buffer from %d to %d bytes: %s",
               buf_len + 1, new_len + 1, strerror(errno));
@@ -116,10 +116,14 @@ int dispatch_request(struct evbuffer *buffer, int fd) {
 
   struct rs_process_info *storage_process = process_find_uid(uid);
   if(storage_process == NULL) {
-    start_storage_process(uid, fd, buf, buf_len + 1);
-  } else {
-    send_fd_to_process(storage_process, fd, buf, buf_len + 1);
+    storage_process = start_storage_process(uid);
+    if(storage_process == NULL) {
+      log_error("Failed to start storage process!");
+      free(buf);
+      return -1;
+    }
   }
+  forward_to_process(storage_process, fd, buf, buf_len);
 
   free(buf);
 
