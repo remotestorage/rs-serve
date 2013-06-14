@@ -75,8 +75,7 @@ void stop_process(evutil_socket_t fd, short events, void *_process_info) {
   kill(process_info->pid, SIGHUP);
 }
 
-int start_process(struct rs_process_info *info, rs_process_main process_main,
-                  int initial_fd, char *initial_buf, int initial_buf_len) {
+int start_process(struct rs_process_info *info, rs_process_main process_main) {
   // setup socket pair
   int sock_fds[2] = { 0, 0 };
   if(socketpair(AF_UNIX, SOCK_DGRAM, 0, sock_fds) != 0) {
@@ -99,7 +98,7 @@ int start_process(struct rs_process_info *info, rs_process_main process_main,
   if(child_pid == 0) {
     close(info->socket_in);
     // run processes main()
-    exit(process_main(info, initial_fd, initial_buf, initial_buf_len));
+    exit(process_main(info));
   } else if(child_pid > 0) {
     close(info->socket_out);
     info->pid = child_pid;
@@ -117,6 +116,33 @@ int start_process(struct rs_process_info *info, rs_process_main process_main,
     perror("Failed to fork() child process");
     return -1;
   }
+}
+
+// this function could either create a pathname in the filesystem,
+// or an abstract socket address (Linux specific).
+// I prefer the latter, but for portability it could be changed to
+// an actual filesystem location.
+void make_process_socket_path(struct rs_process_info *process, char *buf) {
+  memcpy(buf, "\0rs", 3);
+  memcpy(buf + 3, &process->pid, sizeof(pid_t));
+}
+
+int forward_to_process(struct rs_process_info *process, int fd, char *databuf, int databuflen) {
+  struct sockaddr_un addr = { .sun_family = AF_UNIX };
+  make_process_socket_path(process, addr.sun_path);
+  int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+  if(connect(sock, (struct sockaddr*)&addr, sizeof(struct sockaddr_un)) == -1) {
+    log_error("connect() to process socket failed: %s", strerror(errno));
+    return -1;
+  }
+  struct bufferevent *be_pair[2];
+  if(bufferevent_pair_new(RS_EVENT_BASE, 0, be_pair) != 0) {
+    log_error("bufferevent_pair_new() failed: %s", strerror(errno));
+    return -1;
+  }
+  bufferevent_setfd(be_pair[0], fd);
+  bufferevent_setfd(be_pair[1], sock);
+  return 0;
 }
 
 void send_fd_to_process(struct rs_process_info *process, int fd, char *databuf, int databuflen) {

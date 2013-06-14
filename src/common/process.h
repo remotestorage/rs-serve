@@ -29,18 +29,21 @@ struct rs_process_info {
   int socket_out;
 };
 
-typedef int (*rs_process_main)(struct rs_process_info*, int initial_fd, char *initial_buf, int initial_buf_len);
+typedef int (*rs_process_main)(struct rs_process_info*);
 
 /* PROCESS HANDLING */
 
-int start_process(struct rs_process_info *info, rs_process_main process_main, int initial_fd, char *initial_buf, int initial_buf_len);
+int start_process(struct rs_process_info *info, rs_process_main process_main);//, int initial_fd, char *initial_buf, int initial_buf_len);
+int forward_to_process(struct rs_process_info *process, int fd, char *databuf, int databuflen);
 void send_fd_to_process(struct rs_process_info *process, int fd, char *buf, int buflen);
 struct rs_process_info *process_find_uid(uid_t uid);
 struct rs_process_info *process_remove(pid_t pid);
 void process_kill_all();
 
+void make_process_socket_path(struct rs_process_info *process, char *buf);
+
 /* STORAGE PROCESS */
 
-int storage_main(struct rs_process_info *process_info, int initial_fd, char *initial_buf, int initial_buf_len);
+int storage_main(struct rs_process_info*);
 
 #endif /* !RS_PROCESS_H */
