@@ -66,8 +66,18 @@ static void read_signal(evutil_socket_t sfd, short events, void *_process_info) 
   }
 }
 
-int storage_main(struct rs_process_info *process_info,
-                 int initial_fd, char *initial_buf, int initial_buf_len) {
+void accept_conn(struct evconnlistener *listener, evutil_socket_t fd,
+                 struct sockaddr *address, int socklen, void *arg) {
+  struct rs_process_info *process = arg;
+  log_info("CHILD ACCEPTED CONN");
+#define XYZ "HTTP/1.1 204 No Content\nDate: something\n\n"
+  send(fd, XYZ, strlen(XYZ), 0);
+}
+
+int storage_main(struct rs_process_info *process_info) {
+
+  process_info->pid = getpid();
+
   log_info("starting process: storage (uid: %ld)", process_info->uid);
 
   /** CHROOT TO HOME DIRECTORY **/
@@ -140,17 +150,35 @@ int storage_main(struct rs_process_info *process_info,
 
   /** SETUP SOCKET THAT INFORMS ABOUT REQUESTS **/
 
-  // socket pair sends request fds to child process
-  struct event *socket_event = event_new(process_info->base,
-                                         process_info->socket_out,
-                                         EV_READ | EV_PERSIST,
-                                         receive_request_fd,
-                                         process_info);
-  event_add(socket_event, NULL);
+  /* // socket pair sends request fds to child process */
+  /* struct event *socket_event = event_new(process_info->base, */
+  /*                                        process_info->socket_out, */
+  /*                                        EV_READ | EV_PERSIST, */
+  /*                                        receive_request_fd, */
+  /*                                        process_info); */
+  /* event_add(socket_event, NULL); */
 
-  if(initial_fd > 0) {
-    // got initial fd passed. -> process it immediately!
-    process_request(process_info, initial_fd, initial_buf, initial_buf_len);
+  log_debug("got signals crossed etc");
+
+  struct sockaddr_un addr = { .sun_family = AF_UNIX };
+  make_process_socket_path(process_info, addr.sun_path);
+
+  log_debug("have socket path");
+
+  struct evconnlistener *listener;
+  listener = evconnlistener_new_bind(process_info->base,
+                                     accept_conn,
+                                     process_info,
+                                     LEV_OPT_CLOSE_ON_FREE |
+                                     LEV_OPT_REUSEABLE, -1,
+                                     (struct sockaddr*)&addr,
+                                     sizeof(addr));
+
+  log_debug("have listener");
+
+  if(listener == NULL) {
+    log_error("Setting up listener failed: %s", strerror(errno));
+    exit(EXIT_FAILURE);
   }
 
   /** RUN EVENT LOOP **/
