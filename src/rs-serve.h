@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/prctl.h>
+#include <sys/un.h>
 
 // libevent headers
 #include <event2/event.h>
@@ -72,7 +73,9 @@
 #include "common/log.h"
 #include "common/request_response.h"
 #include "common/user.h"
+#include "common/auth.h"
 
+#include "handler/auth.h"
 #include "handler/dispatch.h"
 #include "handler/request.h"
 #include "handler/storage.h"
@@ -93,5 +96,9 @@ void log_dump_state_end(void);
 /* HANDLER */
 
 void fatal_error_callback(int err);
+
+// don't use this for key/val that should be copied.
+#define ADD_RESP_HEADER(req, key, val)                                  \
+  evhtp_headers_add_header(req->headers_out, evhtp_header_new(key, val, 0, 0))
 
 #endif /* !RS_SERVE_H */
