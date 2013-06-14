@@ -27,9 +27,8 @@ static void print_help(const char *progname) {
           "                                  combination with the --log-file option, all\n"
           "                                  future output will be lost.\n"
           "  --dir=<directory-name>        - Name of the directory relative to the user's\n"
-          "                                  home directory to serve data from. If this\n"
-          "                                  option isn't given, the root of the home is\n"
-          "                                  assumed.\n"
+          "                                  home directory to serve data from.\n"
+          "                                  Defaults to: storage\n"
           "  --pid-file=<file>             - Write PID to given file.\n"
           "  --stop                        - Stop a running rs-serve process. The process\n"
           "                                  is identified by the PID file specified via\n"
@@ -163,6 +162,11 @@ void init_config(int argc, char **argv) {
         rs_home_serve_root_len = len;
       }
     }
+  }
+
+  if(rs_home_serve_root == NULL) {
+    rs_home_serve_root = "storage";
+    rs_home_serve_root_len = 7;
   }
 
   if(rs_stop_other) {

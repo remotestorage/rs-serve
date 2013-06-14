@@ -56,7 +56,7 @@ extern char *rs_hostname;
 // CORS header values
 #define RS_ALLOW_ORIGIN "*"
 #define RS_ALLOW_HEADERS "Authorization, Content-Type, Content-Length, ETag"
-#define RS_ALLOW_METHODS "GET, PUT, DELETE"
+#define RS_ALLOW_METHODS "HEAD, GET, PUT, DELETE"
 
 // permissions for newly created files
 #define RS_FILE_CREATE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
