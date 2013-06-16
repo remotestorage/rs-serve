@@ -4,8 +4,8 @@ INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/on
 
 BASE_OBJECTS=src/config.o
 COMMON_OBJECTS=src/common/log.o src/common/process.o src/common/request_response.o src/common/user.o src/common/auth.o
-HANDLER_OBJECTS=src/handler/dispatch.o src/handler/storage.o src/handler/response.o src/handler/request.o src/handler/auth.o
-PROCESS_OBJECTS=src/process/main.o src/process/storage.o
+HANDLER_OBJECTS=src/handler/dispatch.o src/handler/storage.o src/handler/auth.o
+PROCESS_OBJECTS=src/process/main.o
 OBJECTS=$(BASE_OBJECTS) $(COMMON_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
 
 STATIC_LIBS=lib/evhtp/build/libevhtp.a

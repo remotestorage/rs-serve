@@ -19,12 +19,11 @@
  * Gets parsed requests and performs the requested actions / sends the requested
  * response.
  *
- * These functions are only called from storage processes.
  */
 
 static char *escape_name(const char *name);
 static char *make_etag(struct stat *stat_buf);
-static char *make_disk_path(char *user, char *path);
+static char *make_disk_path(char *user, char *path, char **storage_root);
 static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path,
                                  struct stat *stat_buf);
 static int serve_file_head(evhtp_request_t *request_t, char *disk_path,
@@ -43,19 +42,67 @@ evhtp_res storage_handle_get(evhtp_request_t *request) {
   return handle_get_or_head(request, 1);
 }
 
-int storage_begin_put(struct rs_request *request) {
-  char *path_copy = strdup(request->path);
-  if(path_copy == NULL) {
-    log_error("strdup() failed: %s", strerror(errno));
+/* struct rs_put_context { */
+/*   int fd; */
+/*   struct evbuffer *buf; */
+/*   evhtp_request_t *request; */
+/* }; */
+
+/* static void finalize_put(struct rs_put_context *context) { */
+/*   close(context->fd); */
+/*   evbuffer_free(context->buf); */
+/*   evhtp_send_reply(context->request, 200); */
+/*   free(context); */
+/* } */
+
+/* static void write_from_put(struct bufferevent *bev, void *arg) { */
+/*   log_debug("write_from_put()"); */
+/*   struct rs_put_context *context = arg; */
+/*   bufferevent_read_buffer(bev, context->buf); */
+/*   size_t count = evbuffer_get_length(context->buf); */
+/*   if(count == 0) { */
+/*     log_debug("got 0 bytes, finalizing"); */
+/*     finalize_put(context); */
+/*   } else { */
+/*     log_debug("got %d bytes, writing", count); */
+/*     evbuffer_write(context->buf, context->fd); */
+/*   } */
+/* } */
+
+/* static void put_event(struct bufferevent *bev, short what, void *arg) { */
+/*   log_debug("PUT event:"); */
+/*   log_debug(" - BEV_EVENT_READING: %d", (what & BEV_EVENT_READING) ? 1 : 0); */
+/*   log_debug(" - BEV_EVENT_WRITING: %d", (what & BEV_EVENT_WRITING) ? 1 : 0); */
+/*   log_debug(" - BEV_EVENT_EOF: %d", (what & BEV_EVENT_EOF) ? 1 : 0); */
+/*   log_debug(" - BEV_EVENT_ERROR: %d", (what & BEV_EVENT_ERROR) ? 1 : 0); */
+/*   log_debug(" - BEV_EVENT_TIMEOUT: %d", (what & BEV_EVENT_TIMEOUT) ? 1 : 0); */
+/*   log_debug(" - BEV_EVENT_CONNECTED: %d", (what & BEV_EVENT_CONNECTED) ? 1 : 0); */
+/* } */
+
+evhtp_res storage_handle_put(evhtp_request_t *request) {
+  char *storage_root = NULL;
+  char *disk_path = make_disk_path(request->uri->path->match_start,
+                                   request->uri->path->match_end,
+                                   &storage_root);
+  if(disk_path == NULL) {
     return 500;
   }
-  char *dir_path = dirname(path_copy);
+  char *disk_path_copy = strdup(disk_path);
+  if(disk_path_copy == NULL) {
+    log_error("strdup() failed: %s", strerror(errno));
+    free(disk_path);
+    free(storage_root);
+    return 500;
+  }
+  char *dir_path = dirname(disk_path_copy);
   char *saveptr = NULL;
   char *dir_name;
-  int dirfd = open("/", O_RDONLY), prevfd;
+  int dirfd = open(storage_root, O_RDONLY), prevfd;
   if(dirfd == -1) {
-    log_error("failed to open() root directory: %s", strerror(errno));
-    free(path_copy);
+    log_error("failed to open() storage path (\"%s\"): %s", storage_root, strerror(errno));
+    free(disk_path);
+    free(disk_path_copy);
+    free(storage_root);
     return 500;
   }
   struct stat dir_stat;
@@ -65,9 +112,11 @@ int storage_begin_put(struct rs_request *request) {
     if(fstatat(dirfd, dir_name, &dir_stat, 0) == 0) {
       if(! S_ISDIR(dir_stat.st_mode)) {
         // exists, but not a directory
-        log_error("Can't PUT to %s, found a non-directory parent.", request->path);
+        log_error("Can't PUT to %s, found a non-directory parent.", request->uri->path->full);
         close(dirfd);
-        free(path_copy);
+        free(disk_path);
+        free(disk_path_copy);
+        free(storage_root);
         return 400;
       } else {
         // directory exists
@@ -76,7 +125,9 @@ int storage_begin_put(struct rs_request *request) {
       if(mkdirat(dirfd, dir_name, S_IRWXU | S_IRWXG) != 0) {
         log_error("mkdirat() failed: %s", strerror(errno));
         close(dirfd);
-        free(path_copy);
+        free(disk_path);
+        free(disk_path_copy);
+        free(storage_root);
         return 500;
       }
     }
@@ -86,81 +137,65 @@ int storage_begin_put(struct rs_request *request) {
     if(dirfd == -1) {
       log_error("failed to openat() next directory (\"%s\"): %s",
                 dir_name, strerror(errno));
-      free(path_copy);
+      free(disk_path);
+      free(disk_path_copy);
+      free(storage_root);
       return 500;
     }
   }
 
-  char *expectation = NULL;
-  struct rs_header *header;
-  for(header = request->headers;
-      header != NULL;
-      header = header->next) {
-    if(strcmp(header->key, "Expect") == 0) {
-      expectation = header->value;
-      break;
-    }
-  }
-
-  // dirname() possibly made previous copy unusable
-  strcpy(path_copy, request->path);
-  char *file_name = basename(path_copy);
-
-  // open (and possibly create) file
-  int fd = openat(dirfd, file_name,
-                  O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
-                  RS_FILE_CREATE_MODE);
-  free(path_copy);
+  free(disk_path_copy);
+  free(storage_root);
   close(dirfd);
 
+  // open (and possibly create) file
+  int fd = open(disk_path, O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
+                RS_FILE_CREATE_MODE);
+
   if(fd == -1) {
-    log_error("openat() failed to open file \"%s\": %s", file_name, strerror(errno));
+    log_error("open() failed to open file \"%s\": %s", disk_path, strerror(errno));
+    free(disk_path);
     return 500;
   }
 
-  request->file_fd = fd;
+  /* struct rs_put_context *context = malloc(sizeof(struct rs_put_context)); */
+  /* if(context == NULL) { */
+  /*   log_error("malloc() failed: %s", strerror(errno)); */
+  /*   return 500; */
+  /* } */
 
-  if(expectation != NULL) {
-    if(strcasecmp(expectation, "100-continue") == 0) {
-      send_response_head(request, 100, NULL);
-    } else {
-      log_error("Expectation \"%s\" cannot be met.", expectation);
-      return 417;
-    }
-  }
+  evbuffer_write(request->buffer_in, fd);
 
-  return 0;
-}
-
-int storage_end_put(struct rs_request *request) {
-  struct stat stat_buf;
-  log_debug("fstatting now");
-  if(fstat(request->file_fd, &stat_buf) != 0) {
-    log_error("fstat() after PUT failed: %s", strerror(errno));
-    return 500;
-  }
-  log_debug("trying to find content-type header");
-  struct rs_header *header;
   char *content_type = "application/octet-stream; charset=binary";
-  for(header = request->headers;
-      header != NULL;
-      header = header->next) {
-    if(strcmp(header->key, "Content-Type") == 0) {
-      log_debug("got content type header value: %s", header->value);
-      content_type = header->value;
-      break;
-    }
+  evhtp_kv_t *content_type_header = evhtp_headers_find_header(request->headers_in, "Content-Type");
+
+  if(content_type_header != NULL) {
+    content_type = content_type_header->val;
   }
-  if(content_type_to_xattr(request->file_fd, content_type) != 0) {
+  
+  if(content_type_to_xattr(fd, content_type) != 0) {
     log_error("Setting xattr for content type failed. Ignoring.");
   }
-  close(request->file_fd);
-  int head_result = serve_file_head(request, request->path, &stat_buf, content_type);
-  if(head_result != 0) {
-    return head_result;
+
+  close(fd);
+
+  struct stat stat_buf;
+  memset(&stat_buf, 0, sizeof(struct stat));
+  if(stat(disk_path, &stat_buf) != 0) {
+    log_error("failed to stat() file after writing: %s", strerror(errno));
+    free(disk_path);
+    return 500;
   }
-  send_response_empty(request);
-  return 0;
+
+  char *etag_string = make_etag(&stat_buf);
+
+  ADD_RESP_HEADER_CP(request, "Content-Type", content_type);
+  ADD_RESP_HEADER_CP(request, "ETag", etag_string);
+
+  free(etag_string);
+  free(disk_path);
+
+  return EVHTP_RES_OK;
 }
 
 int storage_handle_delete(struct rs_request *request) {
@@ -456,7 +491,7 @@ static int serve_file(evhtp_request_t *request, const char *disk_path, struct st
   return 0;
 }
 
-static char *make_disk_path(char *user, char *path) {
+static char *make_disk_path(char *user, char *path, char **storage_root) {
 
   // FIXME: use passwd->pwdir instead of /home/{user}/
 
@@ -469,6 +504,15 @@ static char *make_disk_path(char *user, char *path) {
   if(disk_path == NULL) {
     log_error("malloc() failed: %s", strerror(errno));
     return NULL;
+  }
+  if(storage_root) {
+    *storage_root = malloc( 6 + RS_HOME_SERVE_ROOT_LEN + 1 + strlen(user) );
+    if(*storage_root == NULL) {
+      log_error("malloc() failed: %s", strerror(errno));
+      free(disk_path);
+      return NULL;
+    }
+    sprintf(*storage_root, "/home/%s/%s", user, RS_HOME_SERVE_ROOT);
   }
   // remove all /.. segments
   // (we don't try to resolve them, but instead treat them as garbage)
@@ -486,7 +530,7 @@ static char *make_disk_path(char *user, char *path) {
 
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) {
   char *disk_path = make_disk_path(request->uri->path->match_start,
-                                   request->uri->path->match_end);
+                                   request->uri->path->match_end, NULL);
   if(disk_path == NULL) {
     return 500;
   }

@@ -151,25 +151,24 @@ static evhtp_res receive_headers(evhtp_request_t *req, evhtp_headers_t *hdr, voi
 }
 
 static void handle_storage(evhtp_request_t *req, void *arg) {
-  evhtp_res status = 0;
   switch(req->method) {
   case htp_method_GET:
-    status = storage_handle_get(req);
+    req->status = storage_handle_get(req);
     break;
   case htp_method_HEAD:
-    status = storage_handle_head(req);
+    req->status = storage_handle_head(req);
     break;
-  //case htp_method_PUT:
-  //  status = storage_handle_put(req);
-  //  break;
+  case htp_method_PUT:
+    req->status = storage_handle_put(req);
+   break;
   //case htp_method_DELETE:
-  //  status = storage_handle_delete(req);
+  //  req->status = storage_handle_delete(req);
   //  break;
   default:
-    status = EVHTP_RES_METHNALLOWED;
+    req->status = EVHTP_RES_METHNALLOWED;
   }
-  if(status != 0) {
-    evhtp_send_reply(req, status);
+  if(req->status != 0) {
+    evhtp_send_reply(req, req->status);
   }
 }
 
