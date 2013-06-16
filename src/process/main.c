@@ -145,10 +145,10 @@ static void handle_storage(evhtp_request_t *req, void *arg) {
     break;
   case htp_method_PUT:
     req->status = storage_handle_put(req);
-   break;
-  //case htp_method_DELETE:
-  //  req->status = storage_handle_delete(req);
-  //  break;
+    break;
+  case htp_method_DELETE:
+    req->status = storage_handle_delete(req);
+    break;
   default:
     req->status = EVHTP_RES_METHNALLOWED;
   }

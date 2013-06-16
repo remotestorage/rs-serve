@@ -43,28 +43,36 @@ evhtp_res storage_handle_get(evhtp_request_t *request) {
 }
 
 evhtp_res storage_handle_put(evhtp_request_t *request) {
+
+  if(request->uri->path->file == NULL) {
+    // PUT to directories aren't allowed
+    return 400;
+  }
+
   char *storage_root = NULL;
   char *disk_path = make_disk_path(request->uri->path->match_start,
                                    request->uri->path->match_end,
                                    &storage_root);
+  log_debug("PUT to %s, resolved to %s on filesystem (storage root: %s)",
+            request->uri->path->match_end, disk_path, storage_root);
   if(disk_path == NULL) {
     return 500;
   }
-  char *disk_path_copy = strdup(disk_path);
-  if(disk_path_copy == NULL) {
+  char *path_copy = strdup(request->uri->path->match_end);
+  if(path_copy == NULL) {
     log_error("strdup() failed: %s", strerror(errno));
     free(disk_path);
     free(storage_root);
     return 500;
   }
-  char *dir_path = dirname(disk_path_copy);
+  char *dir_path = dirname(path_copy);
   char *saveptr = NULL;
   char *dir_name;
   int dirfd = open(storage_root, O_RDONLY), prevfd;
   if(dirfd == -1) {
     log_error("failed to open() storage path (\"%s\"): %s", storage_root, strerror(errno));
     free(disk_path);
-    free(disk_path_copy);
+    free(path_copy);
     free(storage_root);
     return 500;
   }
@@ -78,7 +86,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
         log_error("Can't PUT to %s, found a non-directory parent.", request->uri->path->full);
         close(dirfd);
         free(disk_path);
-        free(disk_path_copy);
+        free(path_copy);
         free(storage_root);
         return 400;
       } else {
@@ -89,7 +97,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
         log_error("mkdirat() failed: %s", strerror(errno));
         close(dirfd);
         free(disk_path);
-        free(disk_path_copy);
+        free(path_copy);
         free(storage_root);
         return 500;
       }
@@ -101,13 +109,13 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
       log_error("failed to openat() next directory (\"%s\"): %s",
                 dir_name, strerror(errno));
       free(disk_path);
-      free(disk_path_copy);
+      free(path_copy);
       free(storage_root);
       return 500;
     }
   }
 
-  free(disk_path_copy);
+  free(path_copy);
   free(storage_root);
   close(dirfd);
 
@@ -156,7 +164,83 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
 }
 
 evhtp_res storage_handle_delete(evhtp_request_t *request) {
-  return 501;
+
+  if(request->uri->path->file == NULL) {
+    // DELETE to directories aren't allowed
+    return 400;
+  }
+
+  char *storage_root = NULL;
+  char *disk_path = make_disk_path(request->uri->path->match_start,
+                                   request->uri->path->match_end,
+                                   &storage_root);
+  if(disk_path == NULL) {
+    return 500;
+  }
+
+  struct stat stat_buf;
+  if(stat(disk_path, &stat_buf) == 0) {
+
+    if(S_ISDIR(stat_buf.st_mode)) {
+      return 400;
+    }
+
+    // file exists, delete it.
+    if(unlink(disk_path) == -1) {
+      log_error("unlink() failed: %s", strerror(errno));
+      return 500;
+    }
+
+    log_debug("match_end=%s", request->uri->path->match_end);
+    
+    /* 
+     * remove empty parents
+     */
+    char *path_copy = strdup(request->uri->path->match_end);
+    if(path_copy == NULL) {
+      log_error("strdup() failed to copy path: %s", strerror(errno));
+      free(disk_path);
+      return 500;
+    }
+    char *dir_path;
+    int rootdirfd = open(storage_root, O_RDONLY);
+    if(rootdirfd == -1) {
+      log_error("failed to open() storage root: %s", strerror(errno));
+      free(path_copy);
+      free(disk_path);
+      return 500;
+    }
+    int result;
+    // skip leading slash
+    char *relative_path = path_copy + 1;
+    for(dir_path = dirname(relative_path);
+        ! (dir_path[0] == '.' && dir_path[1] == 0); // reached root
+        dir_path = dirname(dir_path)) {
+      log_debug("unlinking %s (relative to %s)", dir_path, storage_root);
+      result = unlinkat(rootdirfd, dir_path, AT_REMOVEDIR);
+      if(result != 0) {
+        if(errno == ENOTEMPTY || errno == EEXIST) {
+          // non-empty directory reached
+          break;
+        } else {
+          // other error occured
+          log_error("(while trying to remove %s)\n", dir_path);
+          log_error("unlinkat() failed to remove parent directory: %s", strerror(errno));
+          free(path_copy);
+          free(disk_path);
+          return 500;
+        }
+      }
+    }
+    close(rootdirfd);
+    free(path_copy);
+  } else {
+    // file doesn't exist, ignore it.
+  }
+
+  free(storage_root);
+
+  return 200;
 }
 
 static char *make_etag(struct stat *stat_buf) {
@@ -449,27 +533,35 @@ static char *make_disk_path(char *user, char *path, char **storage_root) {
                   6 + // "/home/"
                   1 + // another slash
                   RS_HOME_SERVE_ROOT_LEN );
-  char *disk_path = malloc(pathlen);
+  char *disk_path = malloc(pathlen + 1);
   if(disk_path == NULL) {
     log_error("malloc() failed: %s", strerror(errno));
     return NULL;
   }
   if(storage_root) {
-    *storage_root = malloc( 6 + RS_HOME_SERVE_ROOT_LEN + 1 + strlen(user) );
+    *storage_root = malloc( 7 + RS_HOME_SERVE_ROOT_LEN + strlen(user) + 1);
     if(*storage_root == NULL) {
       log_error("malloc() failed: %s", strerror(errno));
       free(disk_path);
       return NULL;
     }
     sprintf(*storage_root, "/home/%s/%s", user, RS_HOME_SERVE_ROOT);
+
+    log_debug("have built storage_root, it's: %p", *storage_root);
   }
   // remove all /.. segments
   // (we don't try to resolve them, but instead treat them as garbage)
-  char *traverse_pos = NULL;
-  while((traverse_pos = strstr(path, "/..")) != NULL) {
-    int restlen = strlen(traverse_pos + 3);
-    memmove(traverse_pos, traverse_pos + 3, restlen);
-    traverse_pos[restlen] = 0;
+  char *pos = NULL;
+  while((pos = strstr(path, "/..")) != NULL) {
+    int restlen = strlen(pos + 3);
+    memmove(pos, pos + 3, restlen);
+    pos[restlen] = 0;
+  }
+  // remove all duplicate slashes (nasty things may be done with them at times)
+  while((pos = strstr(path, "//")) != NULL) {
+    int restlen = strlen(pos + 2);
+    memmove(pos, pos + 2, restlen);
+    pos[restlen] = 0;
   }
   // build path
   sprintf(disk_path, "/home/%s/%s%s", user, RS_HOME_SERVE_ROOT, path);
@@ -478,13 +570,20 @@ static char *make_disk_path(char *user, char *path, char **storage_root) {
                       
 
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) {
+  char *storage_root = NULL;
   char *disk_path = make_disk_path(request->uri->path->match_start,
-                                   request->uri->path->match_end, NULL);
+                                   request->uri->path->match_end,
+                                   &storage_root);
   if(disk_path == NULL) {
     return 500;
   }
 
-  log_debug("HANDLE GET OR HEAD, DISK PATH: %s", disk_path);
+  log_debug("GET/HEAD to %s, resolved to %s on filesystem (storage root: %s)",
+            request->uri->path->match_end, disk_path, storage_root);
+
+  log_debug("storage root is %p, disk_path is %p", storage_root, disk_path);
+
+  free(storage_root);
 
   // stat
   struct stat stat_buf;
