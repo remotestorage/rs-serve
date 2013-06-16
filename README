@@ -11,10 +11,11 @@ Dependencies
 - libc
 - libevent (>= 2.0)
 - libmagic
+- libattr
 
 On Debian based systems, this should give you all you need:
 
-  apt-get install build-essential libevent-dev libmagic-dev
+  apt-get install build-essential libevent-dev libmagic-dev libattr1-dev
 
 If you want to develop, you may also want debug symbols and valgrind (required by leakcheck.sh script):
 
