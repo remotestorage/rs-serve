@@ -48,14 +48,20 @@ clean:
 	@find -name '*.swp' -exec rm '{}' ';'
 
 install: rs-serve
+# install rs-esrve
 	@echo "[INSTALL] rs-serve"
 	@install -s rs-serve /usr/bin
+# install tools
 	@echo "[INSTALL] rs-list-tokens"
 	@install -s tools/list-tokens /usr/bin/rs-list-tokens
 	@echo "[INSTALL] rs-add-token"
 	@install -s tools/add-token /usr/bin/rs-add-token
 	@echo "[INSTALL] rs-remove-token"
 	@install -s tools/remove-token /usr/bin/rs-remove-token
+# create working dir
+	@echo "[MKDIR] /var/lib/rs-serve/"
+	@mkdir -p /var/lib/rs-serve
+# install init scxript
 	@echo "[INSTALL] /etc/init.d/rs-serve"
 	@install -m 0755 init-script.sh /etc/init.d/rs-serve
 	@echo "[INSTALL] /etc/default/rs-serve"
