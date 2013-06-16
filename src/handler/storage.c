@@ -406,7 +406,7 @@ static int content_type_to_xattr(int fd, const char *content_type) {
     return -1;
   }
   log_debug("fsetxattr (mime_type) done");
-  if(fsetxattr(fd, "user.charset", mime_type, strlen(charset) + 1, 0) != 0) {
+  if(fsetxattr(fd, "user.charset", charset, strlen(charset) + 1, 0) != 0) {
     log_error("fsetxattr() failed: %s", strerror(errno));
     free(content_type_copy);
     return -1;
@@ -438,15 +438,6 @@ static int serve_file_head(evhtp_request_t *request, char *disk_path, struct sta
       free_mime_type = 1;
     }
   }
-  struct rs_header content_type_header = {
-    .key = "Content-Type",
-    // header won't be freed (it's completely stack based / constant),
-    // so cast is valid here to satisfy type check.
-    // (struct rs_header.value cannot be constant, because in the case of a request
-    //  header it will be free()'d at some point)
-    .value = (char*)mime_type,
-    .next = &RS_DEFAULT_HEADERS
-  };
   char *length_string = malloc(24);
   if(length_string == NULL) {
     log_error("malloc() failed: %s", strerror(errno));
@@ -460,6 +451,7 @@ static int serve_file_head(evhtp_request_t *request, char *disk_path, struct sta
     return 500;
   }
 
+  ADD_RESP_HEADER(request, "Content-Type", mime_type);
   ADD_RESP_HEADER_CP(request, "Content-Length", length_string);
   ADD_RESP_HEADER_CP(request, "ETag", etag_string);
 
