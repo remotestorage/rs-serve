@@ -53,8 +53,6 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   char *disk_path = make_disk_path(request->uri->path->match_start,
                                    request->uri->path->match_end,
                                    &storage_root);
-  log_debug("PUT to %s, resolved to %s on filesystem (storage root: %s)",
-            request->uri->path->match_end, disk_path, storage_root);
   if(disk_path == NULL) {
     return 500;
   }
@@ -190,8 +188,6 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
       log_error("unlink() failed: %s", strerror(errno));
       return 500;
     }
-
-    log_debug("match_end=%s", request->uri->path->match_end);
     
     /* 
      * remove empty parents
@@ -319,8 +315,6 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
     sprintf(full_path, "%s%s", disk_path, entryp->d_name);
     stat(full_path, &file_stat_buf);
 
-    log_debug("Listing add entry %s", entryp->d_name);
-    
     char *escaped_name = escape_name(entryp->d_name);
     if(! escaped_name) {
       // failed to allocate name
@@ -369,7 +363,6 @@ static char *get_xattr(const char *path, const char *key, int maxlen) {
       return NULL;
     }
     int actual_len = getxattr(path, key, value, len);
-    log_debug("getxattr() for key %s returned actual length of %d bytes", key, actual_len);
     if(actual_len > 0) {
       return value;
     } else {
@@ -413,7 +406,6 @@ static char *content_type_from_xattr(const char *path) {
     free(charset);
     return mime_type;
   }
-  log_debug("content_type now: %s (also charset is \"%s\")", content_type, charset);
   sprintf(content_type + mt_len, "; charset=%s", charset);
   free(charset);
   return content_type;
@@ -446,20 +438,17 @@ static int content_type_to_xattr(int fd, const char *content_type) {
     free(content_type_copy);
     return -1;
   }
-  log_debug("fsetxattr (mime_type) done");
   if(fsetxattr(fd, "user.charset", charset, strlen(charset) + 1, 0) != 0) {
     log_error("fsetxattr() failed: %s", strerror(errno));
     free(content_type_copy);
     return -1;
   }
-  log_debug("fsetxattr (charset) done");
   free(content_type_copy);
   return 0;
 }
 
 
 static int serve_file_head(evhtp_request_t *request, char *disk_path, struct stat *stat_buf, const char *mime_type) {
-  log_debug("serve_file_head for path %s", disk_path);
   int free_mime_type = 0;
   // mime type is either passed in ... (such as for directory listings)
   if(mime_type == NULL) {
@@ -495,8 +484,6 @@ static int serve_file_head(evhtp_request_t *request, char *disk_path, struct sta
   ADD_RESP_HEADER(request, "Content-Type", mime_type);
   ADD_RESP_HEADER_CP(request, "Content-Length", length_string);
   ADD_RESP_HEADER_CP(request, "ETag", etag_string);
-
-  log_debug("HAVE SET CONTENT LENGTH: %s", length_string);
 
   evhtp_send_reply_chunk_start(request, 200);
 
@@ -546,8 +533,6 @@ static char *make_disk_path(char *user, char *path, char **storage_root) {
       return NULL;
     }
     sprintf(*storage_root, "/home/%s/%s", user, RS_HOME_SERVE_ROOT);
-
-    log_debug("have built storage_root, it's: %p", *storage_root);
   }
   // remove all /.. segments
   // (we don't try to resolve them, but instead treat them as garbage)
@@ -577,11 +562,6 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
   if(disk_path == NULL) {
     return 500;
   }
-
-  log_debug("GET/HEAD to %s, resolved to %s on filesystem (storage root: %s)",
-            request->uri->path->match_end, disk_path, storage_root);
-
-  log_debug("storage root is %p, disk_path is %p", storage_root, disk_path);
 
   free(storage_root);
 
