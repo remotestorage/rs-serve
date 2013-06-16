@@ -15,8 +15,7 @@
 
 evhtp_res storage_handle_head(evhtp_request_t *request);
 evhtp_res storage_handle_get(evhtp_request_t *request);
-evhtp_res storage_begin_put(evhtp_request_t *request);
-//evhtp_res storage_end_put(struct rs_request *request);
-int storage_handle_delete(struct rs_request *request);
+evhtp_res storage_handle_put(evhtp_request_t *request);
+evhtp_res storage_handle_delete(evhtp_request_t *request);
 
 #endif /* !RS_HANDLER_STORAGE_H */

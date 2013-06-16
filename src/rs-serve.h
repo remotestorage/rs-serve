@@ -44,18 +44,10 @@
 // libevent headers
 #include <event2/event.h>
 #include <event2/buffer.h>
-#include <event2/listener.h>
-#include <event2/http.h> // TODO: remove this line!
-#include <event2/keyvalq_struct.h>
 #include <event2/util.h>
 
 // libevhtp headers
 #include <evhtp.h> // TODO: figure out if we can just include htparse.h
-
-// libevent doesn't define this for some reason.
-// (TODO: remove these when we don't have event2/http.h anymore)
-#define HTTP_UNAUTHORIZED 401
-#define HTTP_FORBIDDEN 403
 
 // libmagic headers
 #include <magic.h>
@@ -69,17 +61,12 @@
 #include "version.h"
 #include "config.h"
 
-#include "common/process.h"
 #include "common/log.h"
-#include "common/request_response.h"
 #include "common/user.h"
 #include "common/auth.h"
 
 #include "handler/auth.h"
-#include "handler/dispatch.h"
-#include "handler/request.h"
 #include "handler/storage.h"
-#include "handler/response.h"
 
 extern magic_t magic_cookie;
 

@@ -48,25 +48,9 @@ void handle_signal(evutil_socket_t fd, short events, void *arg) {
     log_error("Failed to read signal: %s", strerror(errno));
     return;
   }
-  int child_status = 0;
   switch(siginfo.ssi_signo) {
-  case SIGCHLD:
-    if(waitpid(siginfo.ssi_pid, &child_status, WNOHANG) == siginfo.ssi_pid) {
-      log_info("Child %ld exited with status %d.", siginfo.ssi_pid, child_status);
-      struct rs_process_info *child_info = process_remove(siginfo.ssi_pid);
-      if(child_info == NULL) {
-        log_error("while tidying up child %ld: couldn't find process info",
-                  siginfo.ssi_pid);
-      } else {
-        free(child_info);
-      }
-    } else {
-      log_error("Received SIGCHLD, but waitpid() failed: %s", strerror(errno));
-    }
-    break;
   case SIGINT:
   case SIGTERM:
-    process_kill_all();
     exit(EXIT_SUCCESS);
     break;
   default:
@@ -96,6 +80,7 @@ void log_event_base_message(int severity, const char *msg) {
 
 static evhtp_res finish_request(evhtp_request_t *req, void *arg) {
   log_info("%s %s -> %d (fini: %d)", method_strmap[req->method], req->uri->path->full, req->status, req->finished);
+  return 0;
 }
 
 static evhtp_res receive_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {

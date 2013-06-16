@@ -42,43 +42,6 @@ evhtp_res storage_handle_get(evhtp_request_t *request) {
   return handle_get_or_head(request, 1);
 }
 
-/* struct rs_put_context { */
-/*   int fd; */
-/*   struct evbuffer *buf; */
-/*   evhtp_request_t *request; */
-/* }; */
-
-/* static void finalize_put(struct rs_put_context *context) { */
-/*   close(context->fd); */
-/*   evbuffer_free(context->buf); */
-/*   evhtp_send_reply(context->request, 200); */
-/*   free(context); */
-/* } */
-
-/* static void write_from_put(struct bufferevent *bev, void *arg) { */
-/*   log_debug("write_from_put()"); */
-/*   struct rs_put_context *context = arg; */
-/*   bufferevent_read_buffer(bev, context->buf); */
-/*   size_t count = evbuffer_get_length(context->buf); */
-/*   if(count == 0) { */
-/*     log_debug("got 0 bytes, finalizing"); */
-/*     finalize_put(context); */
-/*   } else { */
-/*     log_debug("got %d bytes, writing", count); */
-/*     evbuffer_write(context->buf, context->fd); */
-/*   } */
-/* } */
-
-/* static void put_event(struct bufferevent *bev, short what, void *arg) { */
-/*   log_debug("PUT event:"); */
-/*   log_debug(" - BEV_EVENT_READING: %d", (what & BEV_EVENT_READING) ? 1 : 0); */
-/*   log_debug(" - BEV_EVENT_WRITING: %d", (what & BEV_EVENT_WRITING) ? 1 : 0); */
-/*   log_debug(" - BEV_EVENT_EOF: %d", (what & BEV_EVENT_EOF) ? 1 : 0); */
-/*   log_debug(" - BEV_EVENT_ERROR: %d", (what & BEV_EVENT_ERROR) ? 1 : 0); */
-/*   log_debug(" - BEV_EVENT_TIMEOUT: %d", (what & BEV_EVENT_TIMEOUT) ? 1 : 0); */
-/*   log_debug(" - BEV_EVENT_CONNECTED: %d", (what & BEV_EVENT_CONNECTED) ? 1 : 0); */
-/* } */
-
 evhtp_res storage_handle_put(evhtp_request_t *request) {
   char *storage_root = NULL;
   char *disk_path = make_disk_path(request->uri->path->match_start,
@@ -158,12 +121,6 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
     return 500;
   }
 
-  /* struct rs_put_context *context = malloc(sizeof(struct rs_put_context)); */
-  /* if(context == NULL) { */
-  /*   log_error("malloc() failed: %s", strerror(errno)); */
-  /*   return 500; */
-  /* } */
-
   evbuffer_write(request->buffer_in, fd);
 
   char *content_type = "application/octet-stream; charset=binary";
@@ -198,7 +155,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   return EVHTP_RES_OK;
 }
 
-int storage_handle_delete(struct rs_request *request) {
+evhtp_res storage_handle_delete(evhtp_request_t *request) {
   return 501;
 }
 
@@ -566,7 +523,7 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
     if(include_body) {
       return serve_file(request, disk_path, &stat_buf);
     } else {
-      // ?
+      return 0;
     }
   }
 }

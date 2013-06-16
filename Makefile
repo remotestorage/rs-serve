@@ -3,8 +3,8 @@ LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --
 INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/oniguruma/
 
 BASE_OBJECTS=src/config.o
-COMMON_OBJECTS=src/common/log.o src/common/process.o src/common/request_response.o src/common/user.o src/common/auth.o
-HANDLER_OBJECTS=src/handler/dispatch.o src/handler/storage.o src/handler/auth.o
+COMMON_OBJECTS=src/common/log.o src/common/user.o src/common/auth.o
+HANDLER_OBJECTS=src/handler/storage.o src/handler/auth.o
 PROCESS_OBJECTS=src/process/main.o
 OBJECTS=$(BASE_OBJECTS) $(COMMON_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
 
@@ -50,6 +50,12 @@ clean:
 install: rs-serve
 	@echo "[INSTALL] rs-serve"
 	@install -s rs-serve /usr/bin
+	@echo "[INSTALL] rs-list-tokens"
+	@install -s tools/list-tokens /usr/bin/rs-list-tokens
+	@echo "[INSTALL] rs-add-token"
+	@install -s tools/add-token /usr/bin/rs-add-token
+	@echo "[INSTALL] rs-remove-token"
+	@install -s tools/remove-token /usr/bin/rs-remove-token
 	@echo "[INSTALL] /etc/init.d/rs-serve"
 	@install -m 0755 init-script.sh /etc/init.d/rs-serve
 	@echo "[INSTALL] /etc/default/rs-serve"
@@ -90,4 +96,4 @@ $(SUBMODULES):
 	@echo "[SUBMODULE] $@"
 	@git submodule update --init $@
 
-.PHONY: submodules clean-submodules
+.PHONY: submodules clean-submodules $(SUBMODULES)
