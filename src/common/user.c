@@ -19,13 +19,13 @@ uid_t user_get_uid(const char *username) {
   int buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
   char *buf = malloc(buflen);
   if(buf == NULL) {
-    perror("malloc() failed");
+    log_error("malloc() failed: %s", strerror(errno));
     return -2;
   }
   struct passwd *user_entry, *result_ptr;
   user_entry = malloc(sizeof(struct passwd));
   if(user_entry == NULL) {
-    perror("malloc() failed");
+    log_error("malloc() failed: %s", strerror(errno));
     free(buf);
     return -2;
   }
