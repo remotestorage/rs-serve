@@ -10,9 +10,9 @@
 
 #include <sys/stat.h>
 
+#include "config.h"
 #include "common/auth.h"
 
-char *auth_file_path = "authorizations.dat";
 FILE *auth_fp = NULL;
 
 static void free_scopes(struct rs_scope *scope) {
@@ -25,10 +25,10 @@ static void free_scopes(struct rs_scope *scope) {
 }
 
 void open_authorizations(char *mode) {
-  auth_fp = fopen(auth_file_path, mode);
+  auth_fp = fopen(RS_AUTH_FILE_PATH, mode);
   if(auth_fp == NULL) {
     fprintf(stderr, "Failed to open authorization file \"%s\": %s\n",
-            auth_file_path, strerror(errno));
+            RS_AUTH_FILE_PATH, strerror(errno));
     exit(EXIT_FAILURE);
   }
 }

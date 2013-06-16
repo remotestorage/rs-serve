@@ -59,15 +59,6 @@ char *rs_home_serve_root = NULL;
 int rs_home_serve_root_len = 0;
 int rs_stop_other = 0;
 
-struct rs_header rs_default_headers = {
-  .key = "Access-Control-Allow-Origin",
-  .value = "*",
-  .next = &(struct rs_header){
-    .key = "Access-Control-Allow-Methods",
-    .value = "HEAD, GET, PUT, DELETE"
-  }
-};
-
 void (*current_log_debug)(const char *file, int line, char *format, ...) = NULL;
 
 static struct option long_options[] = {
