@@ -21,7 +21,6 @@
  *
  */
 
-static char *escape_name(const char *name);
 static char *make_etag(struct stat *stat_buf);
 static char *make_disk_path(char *user, char *path, char **storage_root);
 static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path,
@@ -249,25 +248,8 @@ static char *make_etag(struct stat *stat_buf) {
   return etag;
 }
 
-// escape backslashes (/) and double quotes (") to put the given string
-// in quoted JSON strings.
-static char *escape_name(const char *name) {
-  int max_len = strlen(name) * 2, i = 0;
-  char *escaped = malloc(max_len + 1);
-  if(escaped == NULL) {
-    perror("malloc() failed");
-    return NULL;
-  }
-  const char *name_p;
-  for(name_p = name; *name_p != 0; name_p++) {
-    if(*name_p == '"' || *name_p == '\\') {
-      escaped[i++] = '\\';
-    }
-    escaped[i++] = *name_p;
-  }
-  escaped[i++] = 0;
-  escaped = realloc(escaped, i);
-  return escaped;
+int json_buf_writer(char *buf, size_t count, void *arg) {
+  return evbuffer_add((struct evbuffer*)arg, buf, count);
 }
 
 // serve a directory response for the given request
@@ -291,9 +273,14 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
               strerror(errno));
     return 500;
   }
+
+  struct json *json = new_json(json_buf_writer, buf);
+
   struct stat file_stat_buf;
   int entry_len;
-  int first = 1;
+
+  json_start_object(json);
+
   for(;;) {
     readdir_r(dir, entryp, &resultp);
     if(resultp == NULL) {
@@ -304,34 +291,24 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
       // skip.
       continue;
     }
-    if(first) {
-      evbuffer_add(buf, "{", 1);
-      first = 0;
-    } else {
-      evbuffer_add(buf, ",", 1);
-    }
     entry_len = strlen(entryp->d_name);
     char full_path[disk_path_len + entry_len + 1];
     sprintf(full_path, "%s%s", disk_path, entryp->d_name);
     stat(full_path, &file_stat_buf);
 
-    char *escaped_name = escape_name(entryp->d_name);
-    if(! escaped_name) {
-      // failed to allocate name
-      free(entryp);
-      free(dir);
-      return 500;
-    }
-    evbuffer_add_printf(buf, "\"%s%s\":%lld", escaped_name,
-                        S_ISDIR(file_stat_buf.st_mode) ? "/" : "",
-                        ((long long)file_stat_buf.st_mtime) * 1000);
-    free(escaped_name);
+    char key_string[entry_len + 2];
+    sprintf(key_string, "%s%s", entryp->d_name,
+            S_ISDIR(file_stat_buf.st_mode) ? "/": "");
+    char *val_string = make_etag(&file_stat_buf);
+
+    json_write_key_val_string(json, key_string, val_string);
+
+    free(val_string);
   }
-  if(first) {
-    // empty directory.
-    evbuffer_add(buf, "{", 1);
-  }
-  evbuffer_add(buf, "}\n", 2);
+
+  json_end_object(json);
+
+  free_json(json);
 
   char *etag = make_etag(stat_buf);
   if(etag == NULL) {

@@ -64,6 +64,7 @@
 #include "common/log.h"
 #include "common/user.h"
 #include "common/auth.h"
+#include "common/json.h"
 
 #include "handler/auth.h"
 #include "handler/storage.h"
