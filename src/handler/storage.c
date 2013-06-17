@@ -365,7 +365,7 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
 
 static char *get_xattr(const char *path, const char *key, int maxlen) {
   int len = 32;
-  char *value = malloc(32);
+  char *value = NULL;
   for(value = malloc(len);len<=maxlen;value = realloc(value, len+=16)) {
     if(value == NULL) {
       log_error("malloc() / realloc() failed: %s", strerror(errno));
