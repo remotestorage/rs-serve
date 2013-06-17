@@ -25,9 +25,9 @@ static char *make_etag(struct stat *stat_buf);
 static char *make_disk_path(char *user, char *path, char **storage_root);
 static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path,
                                  struct stat *stat_buf);
-static int serve_file_head(evhtp_request_t *request_t, char *disk_path,
+static evhtp_res serve_file_head(evhtp_request_t *request_t, char *disk_path,
                            struct stat *stat_buf,const char *mime_type);
-static int serve_file(evhtp_request_t *request, const char *disk_path,
+static evhtp_res serve_file(evhtp_request_t *request, const char *disk_path,
                       struct stat *stat_buf);
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body);
 static int content_type_to_xattr(int fd, const char *content_type);
@@ -457,7 +457,7 @@ static int content_type_to_xattr(int fd, const char *content_type) {
 }
 
 
-static int serve_file_head(evhtp_request_t *request, char *disk_path, struct stat *stat_buf, const char *mime_type) {
+static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, struct stat *stat_buf, const char *mime_type) {
   int free_mime_type = 0;
   // mime type is either passed in ... (such as for directory listings)
   if(mime_type == NULL) {
@@ -504,7 +504,7 @@ static int serve_file_head(evhtp_request_t *request, char *disk_path, struct sta
 }
 
 // serve a file body for the given request
-static int serve_file(evhtp_request_t *request, const char *disk_path, struct stat *stat_buf) {
+static evhtp_res serve_file(evhtp_request_t *request, const char *disk_path, struct stat *stat_buf) {
   int fd = open(disk_path, O_RDONLY | O_NONBLOCK);
   if(fd < 0) {
     log_error("open() failed: %s", strerror(errno));
@@ -576,9 +576,9 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
   if(stat(disk_path, &stat_buf) != 0) {
     if(errno != ENOENT) {
       log_error("stat() failed for path \"%s\": %s", disk_path, strerror(errno));
-      return 500;
+      return EVHTP_SERVERR;
     } else {
-      return 404;
+      return EVHTP_NOTFOUND;
     }
   }
   // check for directory
@@ -586,19 +586,20 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
     // directory requested
     if(! S_ISDIR(stat_buf.st_mode)) {
       // not a directory.
-      return 404;
+      return EVHTP_RES_NOTFOUND;
     }
     // directory found
     if(include_body) {
       return serve_directory(request, disk_path, &stat_buf);
     } else {
-      return serve_file_head(request, disk_path, &stat_buf, "application/json");
+      evhtp_res head_status = serve_file_head(request, disk_path, &stat_buf, "application/json");
+      return head_status != 0 ? head_status : EVHTP_RES_OK;
     }
   } else {
     // file requested
     if(S_ISDIR(stat_buf.st_mode)) {
       // found, but is a directory
-      return 404;
+      return EVHTP_RES_OK;
     }
     // file found
     int head_result = serve_file_head(request, disk_path, &stat_buf, NULL);
@@ -608,7 +609,7 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
     if(include_body) {
       return serve_file(request, disk_path, &stat_buf);
     } else {
-      return 0;
+      return EVHTP_RES_OK;
     }
   }
 }
