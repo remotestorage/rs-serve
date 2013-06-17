@@ -38,6 +38,7 @@ evhtp_res storage_handle_head(evhtp_request_t *request) {
 }
 
 evhtp_res storage_handle_get(evhtp_request_t *request) {
+  log_debug("storage_handle_get()");
   return handle_get_or_head(request, 1);
 }
 

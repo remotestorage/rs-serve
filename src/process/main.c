@@ -86,25 +86,20 @@ static evhtp_res finish_request(evhtp_request_t *req, void *arg) {
   return 0;
 }
 
-static evhtp_res receive_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
-  request_count++;
-  log_info("[rc=%d] (start) %s %s", request_count, method_strmap[req->method], req->uri->path->full, req->status, req->finished);
-
+static void verify_user(evhtp_request_t *req) {
+  evhtp_path_t *path = req->uri->path;
   char *username = path->match_start;
   uid_t uid = user_get_uid(username);
   if(uid == -1) {
-    evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
+    req->status = EVHTP_RES_NOTFOUND;
   } else if(uid == -2) {
-    evhtp_send_reply(req, EVHTP_RES_SERVERR);
+    req->status = EVHTP_RES_SERVERR;
   } else if(! UID_ALLOWED(uid)) {
     log_info("User not allowed: %s (uid: %ld)", username, uid);
-    evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
+    req->status = EVHTP_RES_NOTFOUND;
   } else {
     log_debug("User found: %s (uid: %ld)", username, uid);
-    return EVHTP_RES_OK;
   }
-  log_error("%s:%d [possible bug] - request paused", __FILE__, __LINE__);
-  return EVHTP_RES_PAUSE;
 }
 
 void add_cors_headers(evhtp_request_t *req) {
@@ -114,43 +109,66 @@ void add_cors_headers(evhtp_request_t *req) {
 }
 
 static void handle_storage(evhtp_request_t *req, void *arg) {
+  request_count++;
+  log_info("[rc=%d] (start) %s %s", request_count, method_strmap[req->method], req->uri->path->full, req->status, req->finished);
 
-  add_cors_headers(req);
+  req->status = 0;
 
-  if(req->method != htp_method_OPTIONS) {
-    int auth_result = authorize_request(req);
-    if(auth_result == 0) {
-      log_debug("Request authorized.");
-    } else if(auth_result == -1) {
-      log_info("Request NOT authorized.");
-      req->status = EVHTP_RES_UNAUTH;
-    } else if(auth_result == -2) {
-      log_error("An error occured while authorizing request.");    
-      req->status = EVHTP_RES_SERVERR; 
+  do {
+
+    // validate user
+    verify_user(req);
+
+    log_info("status after verify_user(): %d", req->status);
+
+    if(req->status) break; // bail
+
+    // authorize request
+    if(req->method != htp_method_OPTIONS) {
+      int auth_result = authorize_request(req);
+      if(auth_result == 0) {
+        log_debug("Request authorized.");
+      } else if(auth_result == -1) {
+        log_info("Request NOT authorized.");
+        req->status = EVHTP_RES_UNAUTH;
+      } else if(auth_result == -2) {
+        log_error("An error occured while authorizing request.");    
+        req->status = EVHTP_RES_SERVERR; 
+      }
     }
-  }
-  if(req->status == 0) {
-    switch(req->method) {
-    case htp_method_OPTIONS:
-      req->status = EVHTP_RES_NOCONTENT;
-      break;
-    case htp_method_GET:
-      req->status = storage_handle_get(req);
-      break;
-    case htp_method_HEAD:
-      req->status = storage_handle_head(req);
-      break;
-    case htp_method_PUT:
-      req->status = storage_handle_put(req);
-      break;
-    case htp_method_DELETE:
-      req->status = storage_handle_delete(req);
-      break;
-    default:
-      req->status = EVHTP_RES_METHNALLOWED;
+
+    log_info("status after authorize_request(): %d", req->status);
+
+    if(req->status) break; // bail
+
+    // dispatch to storage handler
+    if(req->status == 0) {
+      switch(req->method) {
+      case htp_method_OPTIONS:
+        add_cors_headers(req);
+        req->status = EVHTP_RES_NOCONTENT;
+        break;
+      case htp_method_GET:
+        req->status = storage_handle_get(req);
+        break;
+      case htp_method_HEAD:
+        req->status = storage_handle_head(req);
+        break;
+      case htp_method_PUT:
+        req->status = storage_handle_put(req);
+        break;
+      case htp_method_DELETE:
+        req->status = storage_handle_delete(req);
+        break;
+      default:
+        req->status = EVHTP_RES_METHNALLOWED;
+      }
     }
-  }
-  if(req->status != 0) {
+
+  } while(0);
+
+  // send reply, if status was set
+  if(req->status) {
     evhtp_send_reply(req, req->status);
   }
 }
@@ -207,7 +225,6 @@ int main(int argc, char **argv) {
 
   evhtp_callback_t *storage_cb = evhtp_set_regex_cb(server, "^/storage/([^/]+)/.*$", handle_storage, NULL);
 
-  evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_path, receive_path, NULL);
   evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_request_fini, finish_request, NULL);
 
   if(evhtp_bind_sockaddr(server, (struct sockaddr*)&sin, sizeof(sin), 1024) != 0) {
