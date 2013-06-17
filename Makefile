@@ -4,7 +4,7 @@ INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/on
 
 BASE_OBJECTS=src/config.o
 COMMON_OBJECTS=src/common/log.o src/common/user.o src/common/auth.o src/common/json.o
-HANDLER_OBJECTS=src/handler/storage.o src/handler/auth.o
+HANDLER_OBJECTS=src/handler/storage.o src/handler/auth.o src/handler/webfinger.o
 PROCESS_OBJECTS=src/process/main.o
 OBJECTS=$(BASE_OBJECTS) $(COMMON_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
 
