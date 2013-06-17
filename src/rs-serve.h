@@ -68,6 +68,9 @@
 
 #include "handler/auth.h"
 #include "handler/storage.h"
+#include "handler/webfinger.h"
+
+#define UID_ALLOWED(uid) ( (uid) >= RS_MIN_UID )
 
 extern magic_t magic_cookie;
 
@@ -81,9 +84,6 @@ void cleanup_config(void);
 void log_dump_state_start(void);
 void log_dump_state_end(void);
 
-/* HANDLER */
-
-void fatal_error_callback(int err);
 
 // don't use this for key/val that should be copied.
 #define ADD_RESP_HEADER(req, key, val)                                  \
