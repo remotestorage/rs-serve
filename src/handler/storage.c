@@ -31,7 +31,7 @@ static int serve_file(evhtp_request_t *request, const char *disk_path,
                       struct stat *stat_buf);
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body);
 static int content_type_to_xattr(int fd, const char *content_type);
-
+static int compare_version(struct stat *stat_buf, const char *expected);
 
 evhtp_res storage_handle_head(evhtp_request_t *request) {
   return handle_get_or_head(request, 0);
@@ -55,6 +55,35 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   if(disk_path == NULL) {
     return 500;
   }
+
+  // check preconditions
+  do {
+
+    // PUT and DELETE requests MAY have an 'If-Match' request header [HTTP], and
+    // MUST fail with a 412 response code if that doesn't match the document's
+    // current version.
+
+    struct stat tmp_stat_buf;
+    int exists = stat(disk_path, &tmp_stat_buf) == 0;
+    evhtp_header_t *if_match = evhtp_headers_find_header(request->headers_in,
+                                                         "If-Match");
+    if(if_match && ((!exists) || compare_version(&tmp_stat_buf,
+                                                 if_match->val) != 0)) {
+      return 412;
+    }
+
+    // A PUT request MAY have an 'If-None-Match:*' header [HTTP], in which
+    // case it MUST fail with a 412 response code if the document already
+    // exists.
+
+    evhtp_header_t *if_none_match = evhtp_headers_find_header(request->headers_in,
+                                                              "If-None-Match");
+    if(if_none_match && strcmp(if_none_match->val, "*") == 0 && exists) {
+      return 412;
+    }
+
+  } while(0);
+
   char *path_copy = strdup(request->uri->path->match_end);
   if(path_copy == NULL) {
     log_error("strdup() failed: %s", strerror(errno));
@@ -582,4 +611,10 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
       return 0;
     }
   }
+}
+
+static int compare_version(struct stat *stat_buf, const char *expected) {
+  char version_string[32];
+  sprintf(version_string, "%lld", ((long long int) stat_buf->st_mtime) * 1000);
+  return strcmp(version_string, expected);
 }
