@@ -22,6 +22,8 @@
 #define ASSERT_ZERO(var, desc)     ASSERT((var) == 0, desc)
 #define ASSERT_NOT_EQ(a, b, desc)  ASSERT((a) != (b), desc)
 
+unsigned int request_count;
+
 static const char * method_strmap[] = {
     "GET",
     "HEAD",
@@ -79,26 +81,29 @@ void log_event_base_message(int severity, const char *msg) {
 }
 
 static evhtp_res finish_request(evhtp_request_t *req, void *arg) {
-  log_info("%s %s -> %d (fini: %d)", method_strmap[req->method], req->uri->path->full, req->status, req->finished);
+  request_count--;
+  log_info("[rc=%d] %s %s -> %d (fini: %d)", request_count, method_strmap[req->method], req->uri->path->full, req->status, req->finished);
   return 0;
 }
 
 static evhtp_res receive_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
-  log_info("full path: %s (user: %s, path: %s, file: %s)",
-           path->full, path->match_start, path->match_end, path->file);
+  request_count++;
+  log_info("[rc=%d] (start) %s %s", request_count, method_strmap[req->method], req->uri->path->full, req->status, req->finished);
+
   char *username = path->match_start;
   uid_t uid = user_get_uid(username);
   if(uid == -1) {
     evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
   } else if(uid == -2) {
     evhtp_send_reply(req, EVHTP_RES_SERVERR);
-  } else if(uid < RS_MIN_UID) {
+  } else if(! UID_ALLOWED(uid)) {
     log_info("User not allowed: %s (uid: %ld)", username, uid);
     evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
   } else {
     log_debug("User found: %s (uid: %ld)", username, uid);
     return EVHTP_RES_OK;
   }
+  log_error("%s:%d [possible bug] - request paused", __FILE__, __LINE__);
   return EVHTP_RES_PAUSE;
 }
 
@@ -108,49 +113,42 @@ void add_cors_headers(evhtp_request_t *req) {
   ADD_RESP_HEADER(req, "Access-Control-Allow-Methods", RS_ALLOW_METHODS);
 }
 
-static evhtp_res handle_options(evhtp_request_t *req) {
-  evhtp_send_reply(req, EVHTP_RES_NOCONTENT);
-  return EVHTP_RES_PAUSE;
-}
-
-static evhtp_res receive_headers(evhtp_request_t *req, evhtp_headers_t *hdr, void *arg) {
+static void handle_storage(evhtp_request_t *req, void *arg) {
 
   add_cors_headers(req);
 
-  if(req->method == htp_method_OPTIONS) {
-    return handle_options(req);
+  if(req->method != htp_method_OPTIONS) {
+    int auth_result = authorize_request(req);
+    if(auth_result == 0) {
+      log_debug("Request authorized.");
+    } else if(auth_result == -1) {
+      log_info("Request NOT authorized.");
+      req->status = EVHTP_RES_UNAUTH;
+    } else if(auth_result == -2) {
+      log_error("An error occured while authorizing request.");    
+      req->status = EVHTP_RES_SERVERR; 
+    }
   }
-
-  int auth_result = authorize_request(req);
-  if(auth_result == 0) {
-    log_debug("Request authorized.");
-    return EVHTP_RES_OK;
-  } else if(auth_result == -1) {
-    log_info("Request NOT authorized.");
-    return EVHTP_RES_UNAUTH;
-  } else if(auth_result == -2) {
-    log_error("An error occured while authorizing request.");    
-    return EVHTP_RES_SERVERR; 
- }
-  return EVHTP_RES_PAUSE;
-}
-
-static void handle_storage(evhtp_request_t *req, void *arg) {
-  switch(req->method) {
-  case htp_method_GET:
-    req->status = storage_handle_get(req);
-    break;
-  case htp_method_HEAD:
-    req->status = storage_handle_head(req);
-    break;
-  case htp_method_PUT:
-    req->status = storage_handle_put(req);
-    break;
-  case htp_method_DELETE:
-    req->status = storage_handle_delete(req);
-    break;
-  default:
-    req->status = EVHTP_RES_METHNALLOWED;
+  if(req->status == 0) {
+    switch(req->method) {
+    case htp_method_OPTIONS:
+      req->status = EVHTP_RES_NOCONTENT;
+      break;
+    case htp_method_GET:
+      req->status = storage_handle_get(req);
+      break;
+    case htp_method_HEAD:
+      req->status = storage_handle_head(req);
+      break;
+    case htp_method_PUT:
+      req->status = storage_handle_put(req);
+      break;
+    case htp_method_DELETE:
+      req->status = storage_handle_delete(req);
+      break;
+    default:
+      req->status = EVHTP_RES_METHNALLOWED;
+    }
   }
   if(req->status != 0) {
     evhtp_send_reply(req, req->status);
@@ -164,6 +162,8 @@ int main(int argc, char **argv) {
   init_config(argc, argv);
 
   open_authorizations("r");
+
+  init_webfinger();
 
   /** OPEN MAGIC DATABASE **/
 
@@ -199,9 +199,14 @@ int main(int argc, char **argv) {
 
   evhtp_t *server = evhtp_new(rs_event_base, NULL);
 
+  evhtp_set_cb(server, "/.well-known/webfinger", handle_webfinger, NULL);
+
+  // support legacy webfinger clients (we don't support XRD though):
+  evhtp_set_cb(server, "/.well-known/host-meta", handle_webfinger, NULL);
+  evhtp_set_cb(server, "/.well-known/host-meta.json", handle_webfinger, NULL);
+
   evhtp_callback_t *storage_cb = evhtp_set_regex_cb(server, "^/storage/([^/]+)/.*$", handle_storage, NULL);
 
-  evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_headers, receive_headers, NULL);
   evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_path, receive_path, NULL);
   evhtp_set_hook(&storage_cb->hooks, evhtp_hook_on_request_fini, finish_request, NULL);
 
