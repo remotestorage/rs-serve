@@ -42,6 +42,7 @@ evhtp_res storage_handle_get(evhtp_request_t *request) {
 }
 
 evhtp_res storage_handle_put(evhtp_request_t *request) {
+  log_debug("HANDLE PUT");
 
   if(request->uri->path->file == NULL) {
     // PUT to directories aren't allowed
@@ -56,6 +57,11 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
     return 500;
   }
 
+  // check if file exists (needed for preconditions and response code)
+  struct stat stat_buf;
+  memset(&stat_buf, 0, sizeof(struct stat));
+  int exists = stat(disk_path, &stat_buf) == 0;
+
   // check preconditions
   do {
 
@@ -63,12 +69,8 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
     // MUST fail with a 412 response code if that doesn't match the document's
     // current version.
 
-    struct stat tmp_stat_buf;
-    int exists = stat(disk_path, &tmp_stat_buf) == 0;
-    evhtp_header_t *if_match = evhtp_headers_find_header(request->headers_in,
-                                                         "If-Match");
-    if(if_match && ((!exists) || compare_version(&tmp_stat_buf,
-                                                 if_match->val) != 0)) {
+    evhtp_header_t *if_match = evhtp_headers_find_header(request->headers_in, "If-Match");
+    if(if_match && ((!exists) || compare_version(&stat_buf, if_match->val) != 0)) {
       return 412;
     }
 
@@ -76,74 +78,78 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
     // case it MUST fail with a 412 response code if the document already
     // exists.
 
-    evhtp_header_t *if_none_match = evhtp_headers_find_header(request->headers_in,
-                                                              "If-None-Match");
+    evhtp_header_t *if_none_match = evhtp_headers_find_header(request->headers_in, "If-None-Match");
     if(if_none_match && strcmp(if_none_match->val, "*") == 0 && exists) {
       return 412;
     }
 
   } while(0);
 
-  char *path_copy = strdup(request->uri->path->match_end);
-  if(path_copy == NULL) {
-    log_error("strdup() failed: %s", strerror(errno));
-    free(disk_path);
-    free(storage_root);
-    return 500;
-  }
-  char *dir_path = dirname(path_copy);
-  char *saveptr = NULL;
-  char *dir_name;
-  int dirfd = open(storage_root, O_RDONLY), prevfd;
-  if(dirfd == -1) {
-    log_error("failed to open() storage path (\"%s\"): %s", storage_root, strerror(errno));
-    free(disk_path);
-    free(path_copy);
-    free(storage_root);
-    return 500;
-  }
-  struct stat dir_stat;
-  for(dir_name = strtok_r(dir_path, "/", &saveptr);
-      dir_name != NULL;
-      dir_name = strtok_r(NULL, "/", &saveptr)) {
-    if(fstatat(dirfd, dir_name, &dir_stat, 0) == 0) {
-      if(! S_ISDIR(dir_stat.st_mode)) {
-        // exists, but not a directory
-        log_error("Can't PUT to %s, found a non-directory parent.", request->uri->path->full);
-        close(dirfd);
-        free(disk_path);
-        free(path_copy);
-        free(storage_root);
-        return 400;
+  // create parent directories
+  do {
+
+    char *path_copy = strdup(request->uri->path->match_end);
+    if(path_copy == NULL) {
+      log_error("strdup() failed: %s", strerror(errno));
+      free(disk_path);
+      free(storage_root);
+      return 500;
+    }
+    char *dir_path = dirname(path_copy);
+    char *saveptr = NULL;
+    char *dir_name;
+    int dirfd = open(storage_root, O_RDONLY), prevfd;
+    if(dirfd == -1) {
+      log_error("failed to open() storage path (\"%s\"): %s", storage_root, strerror(errno));
+      free(disk_path);
+      free(path_copy);
+      free(storage_root);
+      return 500;
+    }
+    struct stat dir_stat;
+    for(dir_name = strtok_r(dir_path, "/", &saveptr);
+        dir_name != NULL;
+        dir_name = strtok_r(NULL, "/", &saveptr)) {
+      if(fstatat(dirfd, dir_name, &dir_stat, 0) == 0) {
+        if(! S_ISDIR(dir_stat.st_mode)) {
+          // exists, but not a directory
+          log_error("Can't PUT to %s, found a non-directory parent.", request->uri->path->full);
+          close(dirfd);
+          free(disk_path);
+          free(path_copy);
+          free(storage_root);
+          return 400;
+        } else {
+          // directory exists
+        }
       } else {
-        // directory exists
+        if(mkdirat(dirfd, dir_name, S_IRWXU | S_IRWXG) != 0) {
+          log_error("mkdirat() failed: %s", strerror(errno));
+          close(dirfd);
+          free(disk_path);
+          free(path_copy);
+          free(storage_root);
+          return 500;
+        }
       }
-    } else {
-      if(mkdirat(dirfd, dir_name, S_IRWXU | S_IRWXG) != 0) {
-        log_error("mkdirat() failed: %s", strerror(errno));
-        close(dirfd);
+      prevfd = dirfd;
+      dirfd = openat(prevfd, dir_name, O_RDONLY);
+      close(prevfd);
+      if(dirfd == -1) {
+        log_error("failed to openat() next directory (\"%s\"): %s",
+                  dir_name, strerror(errno));
         free(disk_path);
         free(path_copy);
         free(storage_root);
         return 500;
       }
     }
-    prevfd = dirfd;
-    dirfd = openat(prevfd, dir_name, O_RDONLY);
-    close(prevfd);
-    if(dirfd == -1) {
-      log_error("failed to openat() next directory (\"%s\"): %s",
-                dir_name, strerror(errno));
-      free(disk_path);
-      free(path_copy);
-      free(storage_root);
-      return 500;
-    }
-  }
 
-  free(path_copy);
-  free(storage_root);
-  close(dirfd);
+    free(path_copy);
+    free(storage_root);
+    close(dirfd);
+
+  } while(0);
 
   // open (and possibly create) file
   int fd = open(disk_path, O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
@@ -155,6 +161,8 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
     return 500;
   }
 
+  // write buffered data
+  // TODO: open (and write) file earlier in the request, so it doesn't have to be buffered completely.
   evbuffer_write(request->buffer_in, fd);
 
   char *content_type = "application/octet-stream; charset=binary";
@@ -164,13 +172,14 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
     content_type = content_type_header->val;
   }
   
+  // remember content type in extended attributes
   if(content_type_to_xattr(fd, content_type) != 0) {
     log_error("Setting xattr for content type failed. Ignoring.");
   }
 
   close(fd);
 
-  struct stat stat_buf;
+  // stat created file again to generate new etag
   memset(&stat_buf, 0, sizeof(struct stat));
   if(stat(disk_path, &stat_buf) != 0) {
     log_error("failed to stat() file after writing: %s", strerror(errno));
@@ -186,7 +195,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   free(etag_string);
   free(disk_path);
 
-  return EVHTP_RES_OK;
+  return exists ? EVHTP_RES_OK : EVHTP_RES_CREATED;
 }
 
 evhtp_res storage_handle_delete(evhtp_request_t *request) {
@@ -277,18 +286,14 @@ static char *make_etag(struct stat *stat_buf) {
   return etag;
 }
 
-int json_buf_writer(char *buf, size_t count, void *arg) {
+size_t json_buf_writer(char *buf, size_t count, void *arg) {
   return evbuffer_add((struct evbuffer*)arg, buf, count);
 }
 
 // serve a directory response for the given request
 static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, struct stat *stat_buf) {
   size_t disk_path_len = strlen(disk_path);
-  struct evbuffer *buf = evbuffer_new();
-  if(buf == NULL) {
-    log_error("evbuffer_new() failed: %s", strerror(errno));
-    return 500;
-  }
+  struct evbuffer *buf = request->buffer_out;
   DIR *dir = opendir(disk_path);
   if(dir == NULL) {
     log_error("opendir() failed: %s", strerror(errno));
@@ -330,7 +335,7 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
             S_ISDIR(file_stat_buf.st_mode) ? "/": "");
     char *val_string = make_etag(&file_stat_buf);
 
-    json_write_key_val_string(json, key_string, val_string);
+    json_write_key_val(json, key_string, val_string);
 
     free(val_string);
   }
@@ -350,10 +355,7 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
   ADD_RESP_HEADER(request, "Content-Type", "application/json; charset=UTF-8");
   ADD_RESP_HEADER_CP(request, "ETag", etag);
 
-  // FIXME: why do I need to use *_chunk_* here???
-  evhtp_send_reply_chunk_start(request, EVHTP_RES_OK);
-  evhtp_send_reply_chunk(request, buf);
-  evhtp_send_reply_chunk_end(request);
+  evhtp_send_reply(request, EVHTP_RES_OK);
   free(etag);
   free(entryp);
   closedir(dir);
@@ -487,11 +489,10 @@ static int serve_file_head(evhtp_request_t *request, char *disk_path, struct sta
     return 500;
   }
 
-  ADD_RESP_HEADER(request, "Content-Type", mime_type);
+  log_info("setting Content-Type of %s: %s", request->uri->path->full, mime_type);
+  ADD_RESP_HEADER_CP(request, "Content-Type", mime_type);
   ADD_RESP_HEADER_CP(request, "Content-Length", length_string);
   ADD_RESP_HEADER_CP(request, "ETag", etag_string);
-
-  evhtp_send_reply_chunk_start(request, 200);
 
   free(etag_string);
   free(length_string);
@@ -508,12 +509,8 @@ static int serve_file(evhtp_request_t *request, const char *disk_path, struct st
     log_error("open() failed: %s", strerror(errno));
     return 500;
   }
-  struct evbuffer *buf = evbuffer_new();
-  while(evbuffer_read(buf, fd, 4096) != 0) {
-    evhtp_send_reply_chunk(request, buf);
-  }
-  evbuffer_free(buf);
-  evhtp_send_reply_chunk_end(request);
+  while(evbuffer_read(request->buffer_out, fd, 4096) != 0);
+  evhtp_send_reply(request, EVHTP_RES_OK);
   return 0;
 }
 
@@ -558,9 +555,11 @@ static char *make_disk_path(char *user, char *path, char **storage_root) {
   sprintf(disk_path, "/home/%s/%s%s", user, RS_HOME_SERVE_ROOT, path);
   return disk_path;
 }
-                      
 
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) {
+
+  log_debug("HANDLE GET / HEAD (body: %s)", include_body ? "true" : "false");
+
   char *storage_root = NULL;
   char *disk_path = make_disk_path(request->uri->path->match_start,
                                    request->uri->path->match_end,
