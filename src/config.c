@@ -34,7 +34,7 @@ static void print_help(const char *progname) {
           "                                  is identified by the PID file specified via\n"
           "                                  the --pid-file option. NOTE: the --stop option\n"
           "                                  MUST precede the --pid-file option on the\n"
-          "                                  command line for this this to work.\n"
+          "                                  command line for this to work.\n"
           " --debug                        - Enable debug output.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
