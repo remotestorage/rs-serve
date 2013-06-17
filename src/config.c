@@ -22,10 +22,6 @@ static void print_help(const char *progname) {
           "  -p <port> | --port=<port>     - Bind to given port (default: 80).\n"
           "  -n <name> | --hostname=<name> - Set hostname (defaults to local.dev).\n"
           "  -f <file> | --log-file=<file> - Log to given file (defaults to stdout)\n"
-          "  -d        | --detach          - After starting the server, detach server\n"
-          "                                  process and exit. If you don't use this in\n"
-          "                                  combination with the --log-file option, all\n"
-          "                                  future output will be lost.\n"
           "  --dir=<directory-name>        - Name of the directory relative to the user's\n"
           "                                  home directory to serve data from.\n"
           "                                  Defaults to: storage\n"
@@ -51,7 +47,6 @@ static void print_version() {
 
 int rs_port = 80;
 char *rs_hostname = "local.dev";
-int rs_detach = 0;
 FILE *rs_log_file = NULL;
 FILE *rs_pid_file = NULL;
 char *rs_pid_file_path = NULL;
@@ -69,7 +64,6 @@ static struct option long_options[] = {
   { "stop", no_argument, 0, 0 },
   { "log-file", required_argument, 0, 'f' },
   { "debug", no_argument, 0, 0 },
-  { "detach", no_argument, 0, 'd' },
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
   { 0, 0, 0, 0 }
@@ -84,7 +78,7 @@ void init_config(int argc, char **argv) {
   int opt;
   for(;;) {
     int opt_index = 0;
-    opt = getopt_long(argc, argv, "p:n:r:f:dhv", long_options, &opt_index);
+    opt = getopt_long(argc, argv, "p:n:r:f:hv", long_options, &opt_index);
     if(opt == '?') {
       // invalid option
       exit(EXIT_FAILURE);
@@ -101,8 +95,6 @@ void init_config(int argc, char **argv) {
         perror("Failed to open log file");
         exit(EXIT_FAILURE);
       }
-    } else if(opt == 'd') {
-      rs_detach = 1;
     } else if(opt == 'h') {
       print_help(argv[0]);
       exit(127);
