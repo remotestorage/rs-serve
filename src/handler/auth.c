@@ -15,7 +15,7 @@
 #define IS_READ(r) (r->method == htp_method_GET || r->method == htp_method_HEAD)
 
 static int match_scope(struct rs_scope *scope, evhtp_request_t *req) {
-  const char *file_path = req->uri->path->match_end;
+  const char *file_path = REQUEST_GET_PATH(req);
   log_debug("checking scope, name: %s, write: %d", scope->name, scope->write);
   // check path
   if( (strcmp(scope->name, "") == 0) || // root scope
@@ -31,7 +31,7 @@ static int match_scope(struct rs_scope *scope, evhtp_request_t *req) {
 }
 
 int authorize_request(evhtp_request_t *req) {
-  char *username = req->uri->path->match_start;
+  char *username = REQUEST_GET_USER(req);
   const char *auth_header = evhtp_header_find(req->headers_in, "Authorization");
   log_debug("Got auth header: %s", auth_header);
   const char *token;
@@ -54,7 +54,7 @@ int authorize_request(evhtp_request_t *req) {
   }
   // special case: public reads on files (not directories) are allowed.
   // nothing else though.
-  if(strncmp(req->uri->path->match_end, "/public/", 8) == 0 && IS_READ(req) &&
+  if(strncmp(REQUEST_GET_PATH(req), "/public/", 8) == 0 && IS_READ(req) &&
      req->uri->path->file != NULL) {
     return 0;
   }

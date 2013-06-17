@@ -87,8 +87,7 @@ static evhtp_res finish_request(evhtp_request_t *req, void *arg) {
 }
 
 static void verify_user(evhtp_request_t *req) {
-  evhtp_path_t *path = req->uri->path;
-  char *username = path->match_start;
+  char *username = REQUEST_GET_USER(req);
   uid_t uid = user_get_uid(username);
   if(uid == -1) {
     req->status = EVHTP_RES_NOTFOUND;

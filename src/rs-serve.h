@@ -70,25 +70,21 @@
 #include "handler/storage.h"
 #include "handler/webfinger.h"
 
+// users with UIDs that don't pass this test don't exist for rs-serve.
 #define UID_ALLOWED(uid) ( (uid) >= RS_MIN_UID )
 
-extern magic_t magic_cookie;
+/* friendly accessors for requests (evhtp_request_t): */
 
-/* CONFIG */
-
-void init_config(int argc, char **argv);
-void cleanup_config(void);
-
-/* COMMON */
-
-void log_dump_state_start(void);
-void log_dump_state_end(void);
-
-
-// don't use this for key/val that should be copied.
+// get username (string) from storage request path
+#define REQUEST_GET_USER(req) (req)->uri->path->match_start
+// get requested file path (i.e. relative path below user's storage_root)
+// from storage request path.
+#define REQUEST_GET_PATH(req) (req)->uri->path->match_end
+// adds a response header. doesn't copy any values, so only works with
+// static strings
 #define ADD_RESP_HEADER(req, key, val)                                  \
   evhtp_headers_add_header(req->headers_out, evhtp_header_new(key, val, 0, 0))
-
+// same as ADD_RESP_HEADER, but value is copied (i.e. can be a volatile pointer)
 #define ADD_RESP_HEADER_CP(req, key, val)                                  \
   evhtp_headers_add_header(req->headers_out, evhtp_header_new(key, val, 0, 1))
 

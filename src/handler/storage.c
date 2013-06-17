@@ -51,8 +51,8 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   }
 
   char *storage_root = NULL;
-  char *disk_path = make_disk_path(request->uri->path->match_start,
-                                   request->uri->path->match_end,
+  char *disk_path = make_disk_path(REQUEST_GET_USER(request),
+                                   REQUEST_GET_PATH(request),
                                    &storage_root);
   if(disk_path == NULL) {
     return 500;
@@ -89,7 +89,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   // create parent directories
   do {
 
-    char *path_copy = strdup(request->uri->path->match_end);
+    char *path_copy = strdup(REQUEST_GET_PATH(request));
     if(path_copy == NULL) {
       log_error("strdup() failed: %s", strerror(errno));
       free(disk_path);
@@ -207,8 +207,8 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
   }
 
   char *storage_root = NULL;
-  char *disk_path = make_disk_path(request->uri->path->match_start,
-                                   request->uri->path->match_end,
+  char *disk_path = make_disk_path(REQUEST_GET_USER(request),
+                                   REQUEST_GET_PATH(request),
                                    &storage_root);
   if(disk_path == NULL) {
     return 500;
@@ -230,7 +230,7 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
     /* 
      * remove empty parents
      */
-    char *path_copy = strdup(request->uri->path->match_end);
+    char *path_copy = strdup(REQUEST_GET_PATH(request));
     if(path_copy == NULL) {
       log_error("strdup() failed to copy path: %s", strerror(errno));
       free(disk_path);
@@ -584,15 +584,12 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
 
   log_debug("HANDLE GET / HEAD (body: %s)", include_body ? "true" : "false");
 
-  char *storage_root = NULL;
-  char *disk_path = make_disk_path(request->uri->path->match_start,
-                                   request->uri->path->match_end,
-                                   &storage_root);
+  char *disk_path = make_disk_path(REQUEST_GET_USER(request),
+                                   REQUEST_GET_PATH(request),
+                                   NULL);
   if(disk_path == NULL) {
     return 500;
   }
-
-  free(storage_root);
 
   // stat
   struct stat stat_buf;
