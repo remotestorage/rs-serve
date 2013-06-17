@@ -202,7 +202,7 @@ To integrate an authorization endpoint, you need to do two things:
 
 * configure endpoint URI
 
-  Set the --auth-uri-format option to a printf style format string. "%s" will be
+  Set the --auth-uri option to a printf style format string. "%s" will be
   replaced with the username.
 
 * configure your authorization endpoint to manage rs-serve tokens

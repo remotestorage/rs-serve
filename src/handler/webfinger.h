@@ -15,6 +15,7 @@
 
 void init_webfinger();
 void handle_webfinger(evhtp_request_t *req, void *arg);
+void reject_webfinger(evhtp_request_t *req, void *arg);
 
 #endif
 

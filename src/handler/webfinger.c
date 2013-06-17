@@ -20,8 +20,6 @@
 char *lrdd_template = NULL;
 char *storage_uri_format = NULL;
 size_t storage_uri_format_len = 0;
-char *auth_uri_format = "http://auth-app/url/user=%s";
-size_t auth_uri_format_len = 25;
 
 void init_webfinger() {
   lrdd_template = malloc(strlen(RS_SCHEME) + strlen(RS_HOSTNAME) + 40 + 1);
@@ -81,8 +79,8 @@ static int process_resource(const char *resource, char **storage_uri, char **aut
         if(UID_ALLOWED(uid)) {
           *storage_uri = malloc(storage_uri_format_len + strlen(local_part) + 1);
           sprintf(*storage_uri, storage_uri_format, local_part);
-          *auth_uri = malloc(auth_uri_format_len + strlen(local_part) + 1);
-          sprintf(*auth_uri, auth_uri_format, local_part);
+          *auth_uri = malloc(RS_AUTH_URI_LEN + strlen(local_part) + 1);
+          sprintf(*auth_uri, RS_AUTH_URI, local_part);
 
           free(resource_buf);
           return 0; // success!
@@ -93,6 +91,10 @@ static int process_resource(const char *resource, char **storage_uri, char **aut
     free(resource_buf);
   }
   return -1;
+}
+
+void reject_webfinger(evhtp_request_t *req, void *arg) {
+  evhtp_send_reply(req, EVHTP_RES_NOTIMPL);
 }
 
 void handle_webfinger(evhtp_request_t *req, void *arg) {

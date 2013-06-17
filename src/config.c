@@ -32,6 +32,7 @@ static void print_help(const char *progname) {
           "                                  MUST precede the --pid-file option on the\n"
           "                                  command line for this to work.\n"
           " --debug                        - Enable debug output.\n"
+          " --auth-uri=<uri-template>      - URI of the OAuth2 endpoint. Required for webfinger.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -53,6 +54,9 @@ char *rs_pid_file_path = NULL;
 char *rs_home_serve_root = NULL;
 int rs_home_serve_root_len = 0;
 int rs_stop_other = 0;
+char *rs_auth_uri = NULL;
+int rs_auth_uri_len = 0;
+int rs_webfinger_enabled = 1;
 
 void (*current_log_debug)(const char *file, int line, char *format, ...) = NULL;
 
@@ -66,6 +70,7 @@ static struct option long_options[] = {
   { "debug", no_argument, 0, 0 },
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
+  { "auth-uri", required_argument, 0, 0 },
   { 0, 0, 0, 0 }
 };
 
@@ -135,7 +140,7 @@ void init_config(int argc, char **argv) {
         rs_stop_other = 1;
       } else if(strcmp(long_options[opt_index].name, "debug") == 0) { // --debug
         current_log_debug = do_log_debug;
-      } else if(strcmp(long_options[opt_index].name, "dir") == 0) { // --dir
+      } else if(strcmp(long_options[opt_index].name, "dir") == 0) { // --dir=<dirname>
         rs_home_serve_root = optarg;
         int len = strlen(rs_home_serve_root);
         if(rs_home_serve_root[len - 1] == '/') {
@@ -143,6 +148,9 @@ void init_config(int argc, char **argv) {
           rs_home_serve_root[--len] = 0;
         }
         rs_home_serve_root_len = len;
+      } else if(strcmp(long_options[opt_index].name, "auth-uri") == 0) { // --auth-uri=<uri-template>
+        rs_auth_uri = optarg;
+        rs_auth_uri_len = strlen(rs_auth_uri);
       }
     }
   }
@@ -163,6 +171,11 @@ void init_config(int argc, char **argv) {
 
   if(rs_log_file == NULL) {
     rs_log_file = stdout;
+  }
+
+  if(rs_auth_uri == NULL) {
+    log_warn("No --auth-uri set, won't be able to do webfinger!");
+    rs_webfinger_enabled = 0;
   }
 
 }

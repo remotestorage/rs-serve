@@ -136,11 +136,16 @@ int main(int argc, char **argv) {
 
   evhtp_t *server = evhtp_new(rs_event_base, NULL);
 
-  evhtp_set_cb(server, "/.well-known/webfinger", handle_webfinger, NULL);
+  /* WEBFINGER */
 
+  evhtp_callback_cb webfinger_cb = (RS_WEBFINGER_ENABLED ?
+                                    handle_webfinger : reject_webfinger);
+  evhtp_set_cb(server, "/.well-known/webfinger", webfinger_cb, NULL);
   // support legacy webfinger clients (we don't support XRD though):
-  evhtp_set_cb(server, "/.well-known/host-meta", handle_webfinger, NULL);
-  evhtp_set_cb(server, "/.well-known/host-meta.json", handle_webfinger, NULL);
+  evhtp_set_cb(server, "/.well-known/host-meta", webfinger_cb, NULL);
+  evhtp_set_cb(server, "/.well-known/host-meta.json", webfinger_cb, NULL);
+
+  /* REMOTESTORAGE */
 
   evhtp_callback_t *storage_cb = evhtp_set_regex_cb(server, "^/storage/([^/]+)/.*$", handle_storage, NULL);
 
