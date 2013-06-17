@@ -67,8 +67,11 @@
 #include "common/json.h"
 
 #include "handler/auth.h"
+#include "handler/dispatch.h"
 #include "handler/storage.h"
 #include "handler/webfinger.h"
+
+extern magic_t magic_cookie;
 
 // users with UIDs that don't pass this test don't exist for rs-serve.
 #define UID_ALLOWED(uid) ( (uid) >= RS_MIN_UID )
