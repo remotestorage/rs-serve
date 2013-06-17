@@ -79,4 +79,7 @@ extern struct rs_header rs_default_headers;
 
 #define RS_AUTH_FILE_PATH "/var/lib/rs-serve/authorizations.dat"
 
+void init_config(int argc, char **argv);
+void cleanup_config(void);
+
 #endif /* !RS_CONFIG_H */
