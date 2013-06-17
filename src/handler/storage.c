@@ -458,6 +458,29 @@ static int content_type_to_xattr(int fd, const char *content_type) {
 
 
 static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, struct stat *stat_buf, const char *mime_type) {
+
+  log_debug("serve file head");
+
+  if(request->uri->path->file == NULL) {
+    log_debug("HEAD dir requested");
+    // directory was requested
+    if(! S_ISDIR(stat_buf->st_mode)) {
+      log_debug("HEAD file found");
+      // but is actually a file
+      return EVHTP_RES_NOTFOUND;
+    }
+    log_debug("HEAD directory found");
+  } else {
+    log_debug("HEAD file requested");
+    // file was requested
+    if(S_ISDIR(stat_buf->st_mode)) {
+      log_debug("HEAD directory found");
+      // but is actually a directory
+      return EVHTP_RES_NOTFOUND;
+    }
+    log_debug("HEAD file found");
+  }
+
   int free_mime_type = 0;
   // mime type is either passed in ... (such as for directory listings)
   if(mime_type == NULL) {
@@ -480,14 +503,14 @@ static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, stru
   char *length_string = malloc(24);
   if(length_string == NULL) {
     log_error("malloc() failed: %s", strerror(errno));
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
   snprintf(length_string, 24, "%ld", stat_buf->st_size);
   char *etag_string = make_etag(stat_buf);
   if(etag_string == NULL) {
     log_error("make_etag() failed");
     free(length_string);
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
   log_info("setting Content-Type of %s: %s", request->uri->path->full, mime_type);
@@ -574,21 +597,16 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
   // stat
   struct stat stat_buf;
   if(stat(disk_path, &stat_buf) != 0) {
-    if(errno != ENOENT) {
+    if(errno != ENOENT && errno != ENOTDIR) {
       log_error("stat() failed for path \"%s\": %s", disk_path, strerror(errno));
-      return EVHTP_SERVERR;
+      return EVHTP_RES_SERVERR;
     } else {
-      return EVHTP_NOTFOUND;
+      return EVHTP_RES_NOTFOUND;
     }
   }
   // check for directory
   if(request->uri->path->file == NULL) {
     // directory requested
-    if(! S_ISDIR(stat_buf.st_mode)) {
-      // not a directory.
-      return EVHTP_RES_NOTFOUND;
-    }
-    // directory found
     if(include_body) {
       return serve_directory(request, disk_path, &stat_buf);
     } else {
@@ -597,12 +615,7 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
     }
   } else {
     // file requested
-    if(S_ISDIR(stat_buf.st_mode)) {
-      // found, but is a directory
-      return EVHTP_RES_OK;
-    }
-    // file found
-    int head_result = serve_file_head(request, disk_path, &stat_buf, NULL);
+    evhtp_res head_result = serve_file_head(request, disk_path, &stat_buf, NULL);
     if(head_result != 0) {
       return head_result;
     }
