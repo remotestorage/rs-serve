@@ -33,8 +33,9 @@ void open_authorizations(char *mode);
 void close_authorizations();
 off_t find_auth_line(const char *username, const char *token);
 int add_authorization(struct rs_authorization *auth);
-void remove_authorization(struct rs_authorization *auth);
+int remove_authorization(struct rs_authorization *auth);
 void list_authorizations();
+void print_authorization(struct rs_authorization *auth);
 struct rs_authorization *lookup_authorization(const char *username, const char *token);
 
 #endif

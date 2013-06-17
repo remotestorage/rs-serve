@@ -112,16 +112,20 @@ struct rs_authorization *read_authorization(struct rs_authorization *auth, char 
   return parse_authorization(auth, *buf);
 }
 
+void print_authorization(struct rs_authorization *auth) {
+  printf("User: %s, Token: %s\n", auth->username, auth->token);
+  struct rs_scope *scope;
+  for(scope = auth->scopes; scope != NULL; scope = scope->next) {
+    printf(" - %s (%s)\n", *scope->name == 0 ? "(root)" : scope->name, scope->write ? "read-write" : "read-only");
+  }
+}
+
 void list_authorizations() {
   struct rs_authorization auth;
   char *buf = NULL;
   size_t buflen = 0;
   while(read_authorization(&auth, &buf, &buflen) != NULL) {
-    printf("User: %s, Token: %s\n", auth.username, auth.token);
-    struct rs_scope *scope;
-    for(scope = auth.scopes; scope != NULL; scope = scope->next) {
-      printf(" - %s (%s)\n", *scope->name == 0 ? "(root)" : scope->name, scope->write ? "read-write" : "read-only");
-    }
+    print_authorization(&auth);
     free_scopes(auth.scopes);
   }
   if(buf) {
@@ -129,7 +133,7 @@ void list_authorizations() {
   }
 }
 
-void remove_authorization(struct rs_authorization *auth) {
+int remove_authorization(struct rs_authorization *auth) {
   int uname_len = strlen(auth->username);
   int token_len = strlen(auth->token);
   char *buf = NULL;
@@ -139,17 +143,16 @@ void remove_authorization(struct rs_authorization *auth) {
        buf[uname_len] == '|' &&
        strncmp(buf + uname_len + 1, auth->token, token_len) == 0 &&
        buf[uname_len + 1 + token_len] == '|') {
-      fprintf(stderr, "found matching auth starting at: %ld\n", ftell(auth_fp) - linelen);
       fseek(auth_fp, ftell(auth_fp) - linelen, SEEK_SET);
       int j;
       for(j=0;j<linelen;j++) {
         fwrite("\n", 1, 1, auth_fp);
       }
       fflush(auth_fp);
-      return;
+      return 0;
     }
   }
-  fprintf(stderr, "token not found!\n");
+  return -1;
 }
 
 struct rs_authorization *lookup_authorization(const char *username, const char *token) {

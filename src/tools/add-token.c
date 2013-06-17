@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     print_usage(argv[0]);
     exit(127);
   }
-  open_authorizations("r+");
+  open_authorizations("a");
   struct rs_authorization auth;
   auth.username = argv[1];
   auth.token = argv[2];
@@ -37,7 +37,6 @@ int main(int argc, char **argv) {
   int i;
   for(i=3;i<argc;i++) {
     scope_string = argv[i];
-    printf("scope string: %s\n", scope_string);
     struct rs_scope *scope = malloc(sizeof(struct rs_scope));
     char *sptr = scope_string;
     while(*sptr != ':') sptr++;
@@ -50,11 +49,10 @@ int main(int argc, char **argv) {
       scope->len = 0;
     }
     scope->write = (strcmp(sptr, "rw") == 0) ? 1 : 0;
-    printf("(i.e. name: %s, len: %d, write: %d)\n",
-           scope->name, scope->len, scope->write);
     scope->next = auth.scopes;
     auth.scopes = scope;
   }
   add_authorization(&auth);
+  print_authorization(&auth);
   close_authorizations();
 }

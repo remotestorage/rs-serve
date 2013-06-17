@@ -32,6 +32,8 @@ int main(int argc, char **argv) {
   auth.username = argv[1];
   auth.token = argv[2];
   auth.scopes = NULL;
-  remove_authorization(&auth);
+  int success = remove_authorization(&auth);
   close_authorizations();
+  fprintf(stderr, (success == 0) ? "Token removed.\n" : "Token not found!\n");
+  return success;
 }
