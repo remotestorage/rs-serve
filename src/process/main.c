@@ -116,6 +116,8 @@ static void handle_storage(evhtp_request_t *req, void *arg) {
 
   do {
 
+    add_cors_headers(req);
+
     // validate user
     verify_user(req);
 
@@ -145,7 +147,6 @@ static void handle_storage(evhtp_request_t *req, void *arg) {
     if(req->status == 0) {
       switch(req->method) {
       case htp_method_OPTIONS:
-        add_cors_headers(req);
         req->status = EVHTP_RES_NOCONTENT;
         break;
       case htp_method_GET:
