@@ -506,6 +506,28 @@ static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, stru
     }
     log_debug("HEAD file found");
   }
+    
+  char *etag_string = make_etag(stat_buf);
+  if(etag_string == NULL) {
+    log_error("make_etag() failed");
+    return EVHTP_RES_SERVERR;
+  }
+
+  evhtp_header_t *if_none_match_header = evhtp_headers_find_header(request->headers_in, "If-None-Match");
+  if(if_none_match_header) {
+    if(strcmp(if_none_match_header->val, etag_string) == 0) {
+      free(etag_string);
+      return EVHTP_RES_PRECONDFAIL;
+    }
+  }
+
+  char *length_string = malloc(24);
+  if(length_string == NULL) {
+    log_error("malloc() failed: %s", strerror(errno));
+    free(etag_string);
+    return EVHTP_RES_SERVERR;
+  }
+  snprintf(length_string, 24, "%ld", stat_buf->st_size);
 
   int free_mime_type = 0;
   // mime type is either passed in ... (such as for directory listings)
@@ -525,18 +547,6 @@ static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, stru
       // xattr detected mime type and allocated memory for it
       free_mime_type = 1;
     }
-  }
-  char *length_string = malloc(24);
-  if(length_string == NULL) {
-    log_error("malloc() failed: %s", strerror(errno));
-    return EVHTP_RES_SERVERR;
-  }
-  snprintf(length_string, 24, "%ld", stat_buf->st_size);
-  char *etag_string = make_etag(stat_buf);
-  if(etag_string == NULL) {
-    log_error("make_etag() failed");
-    free(length_string);
-    return EVHTP_RES_SERVERR;
   }
 
   log_info("setting Content-Type of %s: %s", request->uri->path->full, mime_type);
