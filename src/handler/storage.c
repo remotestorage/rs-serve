@@ -34,7 +34,11 @@ static int content_type_to_xattr(int fd, const char *content_type);
 static int compare_version(struct stat *stat_buf, const char *expected);
 
 evhtp_res storage_handle_head(evhtp_request_t *request) {
-  return handle_get_or_head(request, 0);
+  if(RS_EXPERIMENTAL) {
+    return handle_get_or_head(request, 0);
+  } else {
+    return EVHTP_RES_METHNALLOWED;
+  }
 }
 
 evhtp_res storage_handle_get(evhtp_request_t *request) {

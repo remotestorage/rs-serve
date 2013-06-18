@@ -64,7 +64,7 @@ Currently the following features are supported:
 * Special handling of public paths (i.e. those starting with /public/), such that
   requests on non-directory paths succeed without authorization.
 * HEAD requests on files and folders with "Content-Length" header
-  (not part of remotestorage-01)
+  (not part of remotestorage-01, only enabled when --experimental flag is given)
 
 2.2) webfinger
 --------------

@@ -87,7 +87,12 @@ extern struct rs_header rs_default_headers;
 
 #define RS_MIN_UID 1000
 
-#define RS_AUTH_FILE_PATH "/var/lib/rs-serve/authorizations.dat"
+//#define RS_AUTH_FILE_PATH "/var/lib/rs-serve/authorizations.dat"
+#define RS_AUTH_FILE_PATH "authorizations.dat"
+
+
+extern int rs_experimental;
+#define RS_EXPERIMENTAL rs_experimental
 
 void init_config(int argc, char **argv);
 void cleanup_config(void);

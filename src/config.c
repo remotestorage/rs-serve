@@ -37,6 +37,7 @@ static void print_help(const char *progname) {
           "                                  command line for this to work.\n"
           " --debug                        - Enable debug output.\n"
           " --auth-uri=<uri-template>      - URI of the OAuth2 endpoint. Required for webfinger.\n"
+          " --experimental                 - Enable experimental features\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -62,6 +63,7 @@ int rs_stop_other = 0;
 char *rs_auth_uri = NULL;
 int rs_auth_uri_len = 0;
 int rs_webfinger_enabled = 1;
+int rs_experimental = 0;
 
 void (*current_log_debug)(const char *file, int line, char *format, ...) = NULL;
 
@@ -77,6 +79,7 @@ static struct option long_options[] = {
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
   { "auth-uri", required_argument, 0, 0 },
+  { "experimental", no_argument, 0, 0 },
   { 0, 0, 0, 0 }
 };
 
@@ -159,6 +162,8 @@ void init_config(int argc, char **argv) {
       } else if(strcmp(long_options[opt_index].name, "auth-uri") == 0) { // --auth-uri=<uri-template>
         rs_auth_uri = optarg;
         rs_auth_uri_len = strlen(rs_auth_uri);
+      } else if(strcmp(long_options[opt_index].name, "experimental") == 0) { // --experimental
+        rs_experimental = 1;
       }
     }
   }
@@ -179,6 +184,12 @@ void init_config(int argc, char **argv) {
 
   if(rs_log_file == NULL) {
     rs_log_file = stdout;
+  }
+
+  if(rs_experimental) {
+    log_info("Experimental features enabled");
+  } else {
+    log_info("Running in strict mode");
   }
 
   if(rs_auth_uri == NULL) {
