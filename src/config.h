@@ -73,6 +73,10 @@ extern FILE *rs_pid_file;
 extern char *rs_pid_file_path;
 #define RS_PID_FILE_PATH rs_pid_file_path
 
+// detach option
+extern int rs_detach;
+#define RS_DETACH rs_detach
+
 extern char *rs_home_serve_root;
 #define RS_HOME_SERVE_ROOT rs_home_serve_root
 extern int rs_home_serve_root_len;
