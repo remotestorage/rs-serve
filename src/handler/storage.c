@@ -576,6 +576,7 @@ static evhtp_res serve_file(evhtp_request_t *request, const char *disk_path, str
   }
   while(evbuffer_read(request->buffer_out, fd, 4096) != 0);
   evhtp_send_reply(request, EVHTP_RES_OK);
+  close(fd);
   return 0;
 }
 
