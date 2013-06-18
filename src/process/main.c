@@ -140,11 +140,27 @@ int main(int argc, char **argv) {
   evhtp_t *server = evhtp_new(rs_event_base, NULL);
 
   if(RS_USE_SSL) {
-    evhtp_ssl_cfg_t ssl_config;
-    memset(&ssl_config, 0, sizeof(evhtp_ssl_cfg_t));
-    ssl_config.pemfile = RS_SSL_CERT_PATH;
-    ssl_config.privfile = RS_SSL_KEY_PATH;
-    ssl_config.capath = RS_SSL_CA_PATH;
+    evhtp_ssl_cfg_t ssl_config = {
+      .pemfile = RS_SSL_CERT_PATH,
+      .privfile = RS_SSL_KEY_PATH,
+      .cafile = RS_SSL_CA_PATH,
+      // what's this???
+      .capath = NULL,
+      .ciphers = "RC4+RSA:HIGH:+MEDIUM:+LOW",
+      .ssl_opts = SSL_OP_NO_SSLv2,
+      .ssl_ctx_timeout = 60*60*48,
+      .verify_peer = SSL_VERIFY_PEER,
+      .verify_depth = 42,
+      .x509_verify_cb = NULL,
+      .x509_chk_issued_cb = NULL,
+      .scache_type = evhtp_ssl_scache_type_internal,
+      .scache_size = 1024,
+      .scache_timeout = 1024,
+      .scache_init = NULL,
+      .scache_add = NULL,
+      .scache_get = NULL,
+      .scache_del = NULL
+    };
 
     if(evhtp_ssl_init(server, &ssl_config) != 0) {
       log_error("evhtp_ssl_init() failed");
