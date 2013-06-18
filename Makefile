@@ -1,5 +1,5 @@
 CFLAGS=${shell pkg-config libevent_openssl --cflags} -ggdb -Wall --std=c99 $(INCLUDES)
-LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic -lattr
+LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic -lattr -lpthread
 INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/oniguruma/
 
 BASE_OBJECTS=src/config.o
