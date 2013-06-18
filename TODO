@@ -11,3 +11,4 @@
   Currently /home/{user}/{--dir} is the hardcoded way to build the storage-root.
   Instead this should be based on the system configuration.
 
+* TODO Add HTTPS support
