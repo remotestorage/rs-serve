@@ -1,0 +1,13 @@
+# -*- mode:org -*-
+
+* TODO Add --group and --gid options
+  These should cause a setegid() and chgrp() all created files / folders to that
+  group. That way the process can run as a unprivileged user, while still being
+  able to access all user's folder (provided the given group can read/write/execute
+  the user's storage-root)
+* TODO Add --user and --uid options
+  These should cause the process to drop privileges after bind()ing.
+* TODO Use user_entry->pw_dir to build the storage root
+  Currently /home/{user}/{--dir} is the hardcoded way to build the storage-root.
+  Instead this should be based on the system configuration.
+
