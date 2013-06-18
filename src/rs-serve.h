@@ -47,7 +47,7 @@
 #include <event2/util.h>
 
 // libevhtp headers
-#include <evhtp.h> // TODO: figure out if we can just include htparse.h
+#include <evhtp.h>
 
 // libmagic headers
 #include <magic.h>

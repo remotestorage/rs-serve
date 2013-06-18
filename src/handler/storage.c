@@ -86,6 +86,22 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
 
   } while(0);
 
+  // look up uid and gid of current user, so we can chown() correctly.
+  uid_t uid;
+  gid_t gid;
+  do {
+    char *bufptr = NULL;
+    struct passwd *user_entry = user_get_entry(REQUEST_GET_USER(request), &bufptr);
+    if(user_entry > 0) {
+      uid = user_entry->pw_uid;
+      gid = user_entry->pw_gid;
+      free(user_entry);
+      free(bufptr);
+    } else {
+      return 500;
+    }
+  } while(0);
+
   // create parent directories
   do {
 
@@ -132,6 +148,10 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
           free(storage_root);
           return 500;
         }
+
+        if(fchownat(dirfd, dir_name, uid, gid, AT_SYMLINK_NOFOLLOW) != 0) {
+          log_warn("failed to chown() newly created directory: %s", strerror(errno));
+        }
       }
       prevfd = dirfd;
       dirfd = openat(prevfd, dir_name, O_RDONLY);
@@ -155,6 +175,12 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   // open (and possibly create) file
   int fd = open(disk_path, O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
                 RS_FILE_CREATE_MODE);
+
+  if(! exists) {
+    if(fchown(fd, uid, gid) != 0) {
+      log_warn("Failed to chown() newly created file: %s", strerror(errno));
+    }
+  }
 
   if(fd == -1) {
     log_error("open() failed to open file \"%s\": %s", disk_path, strerror(errno));

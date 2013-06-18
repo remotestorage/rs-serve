@@ -14,5 +14,6 @@
 #define RS_COMMON_USER_H
 
 uid_t user_get_uid(const char *username);
+struct passwd *user_get_entry(const char *username, char **bufptr);
 
 #endif /* !RS_COMMON_USER_H */
