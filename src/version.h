@@ -15,6 +15,6 @@
 
 #define RS_VERSION_MAJOR 0
 #define RS_VERSION_MINOR 1
-#define RS_VERSION_POSTFIX "-dev"
+#define RS_VERSION_POSTFIX ""
 
 #endif
