@@ -47,6 +47,11 @@ clean:
 	@find -name '*~' -exec rm '{}' ';'
 	@find -name '*.swp' -exec rm '{}' ';'
 
+notes:
+	@grep -rE 'TODO:|FIXME:' src/
+
+.PHONY: notes
+
 install: rs-serve
 # install rs-esrve
 	@echo "[INSTALL] rs-serve"
