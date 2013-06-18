@@ -95,6 +95,15 @@ static void handle_storage(evhtp_request_t *req, void *arg) {
   dispatch_storage(req, arg);
 }
 
+static int dummy_ssl_verify_callback(int ok, X509_STORE_CTX * x509_store) {
+  return 1;
+}
+
+static int dummy_check_issued_cb(X509_STORE_CTX * ctx, X509 * x, X509 * issuer) {
+  return 1;
+}
+
+
 magic_t magic_cookie;
 
 int main(int argc, char **argv) {
@@ -151,8 +160,8 @@ int main(int argc, char **argv) {
       .ssl_ctx_timeout = 60*60*48,
       .verify_peer = SSL_VERIFY_PEER,
       .verify_depth = 42,
-      .x509_verify_cb = NULL,
-      .x509_chk_issued_cb = NULL,
+      .x509_verify_cb = dummy_ssl_verify_callback,
+      .x509_chk_issued_cb = dummy_check_issued_cb,
       .scache_type = evhtp_ssl_scache_type_internal,
       .scache_size = 1024,
       .scache_timeout = 1024,
