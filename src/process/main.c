@@ -139,6 +139,19 @@ int main(int argc, char **argv) {
 
   evhtp_t *server = evhtp_new(rs_event_base, NULL);
 
+  if(RS_USE_SSL) {
+    evhtp_ssl_cfg_t ssl_config;
+    memset(&ssl_config, 0, sizeof(evhtp_ssl_cfg_t));
+    ssl_config.pemfile = RS_SSL_CERT_PATH;
+    ssl_config.privfile = RS_SSL_KEY_PATH;
+    ssl_config.capath = RS_SSL_CA_PATH;
+
+    if(evhtp_ssl_init(server, &ssl_config) != 0) {
+      log_error("evhtp_ssl_init() failed");
+      exit(EXIT_FAILURE);
+    }
+  }
+
   /* WEBFINGER */
 
   evhtp_callback_cb webfinger_cb = (RS_WEBFINGER_ENABLED ?

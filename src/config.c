@@ -38,6 +38,10 @@ static void print_help(const char *progname) {
           " --debug                        - Enable debug output.\n"
           " --auth-uri=<uri-template>      - URI of the OAuth2 endpoint. Required for webfinger.\n"
           " --experimental                 - Enable experimental features\n"
+          " --ssl                          - Enable SSL.\n"
+          " --cert-path=<path>             - Set path to SSL certificate file.\n"
+          " --key-path=<path>              - Set path to SSL key file.\n"
+          " --ca-path=<path>               - Set path to SSL CA file.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -52,6 +56,7 @@ static void print_version() {
 }
 
 int rs_port = 80;
+char *rs_scheme = "http";
 char *rs_hostname = "local.dev";
 int rs_detach = 0;
 FILE *rs_log_file = NULL;
@@ -64,6 +69,10 @@ char *rs_auth_uri = NULL;
 int rs_auth_uri_len = 0;
 int rs_webfinger_enabled = 1;
 int rs_experimental = 0;
+int rs_use_ssl = 0;
+char *rs_ssl_cert_path = NULL;
+char *rs_ssl_key_path = NULL;
+char *rs_ssl_ca_path = NULL;
 
 void (*current_log_debug)(const char *file, int line, char *format, ...) = NULL;
 
@@ -80,6 +89,10 @@ static struct option long_options[] = {
   { "version", no_argument, 0, 'v' },
   { "auth-uri", required_argument, 0, 0 },
   { "experimental", no_argument, 0, 0 },
+  { "ssl", no_argument, 0, 0 },
+  { "cert-path", required_argument, 0, 0, },
+  { "key-path", required_argument, 0, 0, },
+  { "ca-path", required_argument, 0, 0, },
   { 0, 0, 0, 0 }
 };
 
@@ -118,8 +131,11 @@ void init_config(int argc, char **argv) {
       print_version();
       exit(127);
     } else if(opt == 0) {
+
+      const char *arg_name = long_options[opt_index].name;
+
       // long option with no short equivalent
-      if(strcmp(long_options[opt_index].name, "pid-file") == 0) { // --pid-file
+      if(strcmp(arg_name, "pid-file") == 0) { // --pid-file
         rs_pid_file_path = optarg;
 
         // stop was requested, kill other process by pid-file
@@ -147,11 +163,11 @@ void init_config(int argc, char **argv) {
           exit(EXIT_FAILURE);
         }
         atexit(close_pid_file);
-      } else if(strcmp(long_options[opt_index].name, "stop") == 0) { // --stop
+      } else if(strcmp(arg_name, "stop") == 0) { // --stop
         rs_stop_other = 1;
-      } else if(strcmp(long_options[opt_index].name, "debug") == 0) { // --debug
+      } else if(strcmp(arg_name, "debug") == 0) { // --debug
         current_log_debug = do_log_debug;
-      } else if(strcmp(long_options[opt_index].name, "dir") == 0) { // --dir=<dirname>
+      } else if(strcmp(arg_name, "dir") == 0) { // --dir=<dirname>
         rs_home_serve_root = optarg;
         int len = strlen(rs_home_serve_root);
         if(rs_home_serve_root[len - 1] == '/') {
@@ -159,11 +175,20 @@ void init_config(int argc, char **argv) {
           rs_home_serve_root[--len] = 0;
         }
         rs_home_serve_root_len = len;
-      } else if(strcmp(long_options[opt_index].name, "auth-uri") == 0) { // --auth-uri=<uri-template>
+      } else if(strcmp(arg_name, "auth-uri") == 0) { // --auth-uri=<uri-template>
         rs_auth_uri = optarg;
         rs_auth_uri_len = strlen(rs_auth_uri);
-      } else if(strcmp(long_options[opt_index].name, "experimental") == 0) { // --experimental
+      } else if(strcmp(arg_name, "experimental") == 0) { // --experimental
         rs_experimental = 1;
+      } else if(strcmp(arg_name, "ssl") == 0) { // --ssl
+        rs_use_ssl = 1;
+        rs_scheme = "https";
+      } else if(strcmp(arg_name, "cert-path") == 0) { // --cert-path
+        rs_ssl_cert_path = optarg;
+      } else if(strcmp(arg_name, "key-path") == 0) { // --key-path
+        rs_ssl_key_path = optarg;
+      } else if(strcmp(arg_name, "ca-path") == 0) { // --ca-path
+        rs_ssl_ca_path = optarg;
       }
     }
   }
@@ -184,6 +209,17 @@ void init_config(int argc, char **argv) {
 
   if(rs_log_file == NULL) {
     rs_log_file = stdout;
+  }
+
+  if(RS_USE_SSL) {
+    if(RS_SSL_CERT_PATH == NULL || RS_SSL_KEY_PATH == NULL) {
+      log_error("You need to specify at least --cert-path and --key-path options to enable SSL");
+      exit(EXIT_FAILURE);
+    }
+
+    if(rs_port == 80) {
+      rs_port = 443;
+    }
   }
 
   if(rs_experimental) {

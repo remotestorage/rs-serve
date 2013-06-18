@@ -40,7 +40,8 @@ extern struct event_base *rs_event_base;
 #define RS_EVENT_BASE rs_event_base
 
 // only used for webfinger result at the moment
-#define RS_SCHEME "http"
+extern char *rs_scheme;
+#define RS_SCHEME rs_scheme
 extern char *rs_hostname;
 #define RS_HOSTNAME rs_hostname
 #define RS_STORAGE_API "draft-dejong-remotestorage-01"
@@ -87,10 +88,19 @@ extern struct rs_header rs_default_headers;
 
 #define RS_MIN_UID 1000
 
-#define RS_AUTH_FILE_PATH "/var/lib/rs-serve/authorizations.dat"
+#define RS_AUTH_FILE_PATH "authorizations.dat"
 
 extern int rs_experimental;
 #define RS_EXPERIMENTAL rs_experimental
+
+extern int rs_use_ssl;
+#define RS_USE_SSL rs_use_ssl
+extern char *rs_ssl_cert_path;
+#define RS_SSL_CERT_PATH rs_ssl_cert_path
+extern char *rs_ssl_key_path;
+#define RS_SSL_KEY_PATH rs_ssl_key_path
+extern char *rs_ssl_ca_path;
+#define RS_SSL_CA_PATH rs_ssl_ca_path
 
 void init_config(int argc, char **argv);
 void cleanup_config(void);
