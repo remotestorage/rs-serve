@@ -69,8 +69,12 @@ install: rs-serve
 # install init scxript
 	@echo "[INSTALL] /etc/init.d/rs-serve"
 	@install -m 0755 init-script.sh /etc/init.d/rs-serve
+ifeq (${shell test -f /etc/default/rs-serve >/dev/null 2>&1 ; echo $$?}, 0)
+	@echo "[EXISTS] /etc/default/rs-serve"
+else
 	@echo "[INSTALL] /etc/default/rs-serve"
 	@install init-script-defaults /etc/default/rs-serve
+endif
 ifeq (${shell type update-rc.d >/dev/null 2>&1 ; echo $$?}, 0)
 	@echo "[UPDATE-RC.D]"
 	@update-rc.d rs-serve defaults
