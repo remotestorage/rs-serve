@@ -31,6 +31,7 @@ void log_warn(char *format, ...) {
   sprintf(new_format, "[%d] [%s] [WARN] %s\n", getpid(), timestamp, format);
   vfprintf(RS_LOG_FILE, new_format, ap);
   va_end(ap);
+  fflush(RS_LOG_FILE);
 }
 
 void log_info(char *format, ...) {
@@ -44,6 +45,7 @@ void log_info(char *format, ...) {
   sprintf(new_format, "[%d] [%s] [INFO] %s\n", getpid(), timestamp, format);
   vfprintf(RS_LOG_FILE, new_format, ap);
   va_end(ap);
+  fflush(RS_LOG_FILE);
 }
 
 void log_error(char *format, ...) {
@@ -57,6 +59,7 @@ void log_error(char *format, ...) {
   sprintf(new_format, "[%d] [%s] [ERROR] %s\n", getpid(), timestamp, format);
   vfprintf(RS_LOG_FILE, new_format, ap);
   va_end(ap);
+  fflush(RS_LOG_FILE);
 }
 
 void dont_log_debug(const char *file, int line, char *format, ...) {};
@@ -74,4 +77,5 @@ void do_log_debug(const char *file, int line, char *format, ...) {
   sprintf(new_format, "[%d] [%s] [DEBUG] %s:%d: %s\n", getpid(), timestamp, file, line, format);
   vfprintf(RS_LOG_FILE, new_format, ap);
   va_end(ap);
+  fflush(RS_LOG_FILE);
 }

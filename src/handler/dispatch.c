@@ -43,8 +43,6 @@ void dispatch_storage(evhtp_request_t *req, void *arg) {
     // validate user
     verify_user(req);
 
-    log_info("status after verify_user(): %d", req->status);
-
     if(req->status) break; // bail
 
     // authorize request
@@ -60,8 +58,6 @@ void dispatch_storage(evhtp_request_t *req, void *arg) {
         req->status = EVHTP_RES_SERVERR; 
       }
     }
-
-    log_info("status after authorize_request(): %d", req->status);
 
     if(req->status) break; // bail
 

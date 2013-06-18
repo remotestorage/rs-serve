@@ -44,7 +44,6 @@ static const char * method_strmap[] = {
 };
 
 void handle_signal(evutil_socket_t fd, short events, void *arg) {
-  log_info("handle_signal()");
   struct signalfd_siginfo siginfo;
   if(read(fd, &siginfo, sizeof(siginfo)) < 0) {
     log_error("Failed to read signal: %s", strerror(errno));
@@ -52,7 +51,11 @@ void handle_signal(evutil_socket_t fd, short events, void *arg) {
   }
   switch(siginfo.ssi_signo) {
   case SIGINT:
+    log_info("SIGINT caught, exiting.");
+    exit(EXIT_SUCCESS);
+    break;
   case SIGTERM:
+    log_info("SIGTERM caught, exiting.");
     exit(EXIT_SUCCESS);
     break;
   default:
@@ -171,13 +174,33 @@ int main(int argc, char **argv) {
                                          handle_signal, NULL);
   event_add(signal_event, NULL);
 
-  /** WRITE PID FILE **/
-  if(RS_PID_FILE) {
-    fprintf(RS_PID_FILE, "%d", getpid());
-    fflush(RS_PID_FILE);
-  }
-
   /** RUN EVENT LOOP **/
 
-  return event_base_dispatch(rs_event_base);
+  if(RS_DETACH) {
+    int pid = fork();
+    if(pid == 0) {
+      event_reinit(rs_event_base);
+
+      if(RS_LOG_FILE == stdout) {
+        log_warn("No --log-file option given. Future output will be lost.");
+        freopen("/dev/null", "r", stdout);
+        freopen("/dev/null", "r", stderr);
+      }
+
+      return event_base_dispatch(rs_event_base);
+    } else {
+      printf("rs-serve detached with pid %d\n", pid);
+      if(RS_PID_FILE) {
+        fprintf(RS_PID_FILE, "%d", pid);
+        fflush(RS_PID_FILE);
+      }
+      _exit(EXIT_SUCCESS);
+    }
+  } else {
+    if(RS_PID_FILE) {
+      fprintf(RS_PID_FILE, "%d", getpid());
+      fflush(RS_PID_FILE);
+    }
+    return event_base_dispatch(rs_event_base);
+  }
 }
