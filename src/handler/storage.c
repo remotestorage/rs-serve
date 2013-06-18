@@ -180,16 +180,16 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   int fd = open(disk_path, O_NONBLOCK | O_CREAT | O_WRONLY | O_TRUNC,
                 RS_FILE_CREATE_MODE);
 
-  if(! exists) {
-    if(fchown(fd, uid, gid) != 0) {
-      log_warn("Failed to chown() newly created file: %s", strerror(errno));
-    }
-  }
-
   if(fd == -1) {
     log_error("open() failed to open file \"%s\": %s", disk_path, strerror(errno));
     free(disk_path);
     return 500;
+  }
+
+  if(! exists) {
+    if(fchown(fd, uid, gid) != 0) {
+      log_warn("Failed to chown() newly created file: %s", strerror(errno));
+    }
   }
 
   // write buffered data
