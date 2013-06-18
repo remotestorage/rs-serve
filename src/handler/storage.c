@@ -386,11 +386,10 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
   ADD_RESP_HEADER(request, "Content-Type", "application/json; charset=UTF-8");
   ADD_RESP_HEADER_CP(request, "ETag", etag);
 
-  evhtp_send_reply(request, EVHTP_RES_OK);
   free(etag);
   free(entryp);
   closedir(dir);
-  return 0;
+  return EVHTP_RES_OK;
 }
 
 static char *get_xattr(const char *path, const char *key, int maxlen) {
@@ -575,9 +574,8 @@ static evhtp_res serve_file(evhtp_request_t *request, const char *disk_path, str
     return 500;
   }
   while(evbuffer_read(request->buffer_out, fd, 4096) != 0);
-  evhtp_send_reply(request, EVHTP_RES_OK);
   close(fd);
-  return 0;
+  return EVHTP_RES_OK;
 }
 
 static char *make_disk_path(char *user, char *path, char **storage_root) {
