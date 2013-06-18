@@ -403,6 +403,7 @@ static char *get_xattr(const char *path, const char *key, int maxlen) {
     }
     int actual_len = getxattr(path, key, value, len);
     if(actual_len > 0) {
+      value[actual_len] = 0;
       return value;
     } else {
       if(errno == ERANGE) {
