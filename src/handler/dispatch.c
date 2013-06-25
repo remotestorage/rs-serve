@@ -16,6 +16,7 @@ static void add_cors_headers(evhtp_request_t *req) {
   ADD_RESP_HEADER(req, "Access-Control-Allow-Origin", RS_ALLOW_ORIGIN);
   ADD_RESP_HEADER(req, "Access-Control-Allow-Headers", RS_ALLOW_HEADERS);
   ADD_RESP_HEADER(req, "Access-Control-Allow-Methods", RS_ALLOW_METHODS);
+  ADD_RESP_HEADER(req, "Access-Control-Expose-Headers", RS_EXPOSE_HEADERS);
 }
 
 static void verify_user(evhtp_request_t *req) {
