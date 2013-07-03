@@ -521,7 +521,7 @@ static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, stru
   if(if_none_match_header) {
     if(strcmp(if_none_match_header->val, etag_string) == 0) {
       free(etag_string);
-      return EVHTP_RES_PRECONDFAIL;
+      return EVHTP_RES_NOTMOD;
     }
   }
 
