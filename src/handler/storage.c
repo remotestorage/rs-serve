@@ -604,7 +604,7 @@ static char *make_disk_path(char *user, char *path, char **storage_root) {
   // remove all /.. segments
   // (we don't try to resolve them, but instead treat them as garbage)
   char *pos = NULL;
-  while((pos = strstr(path, "/..")) != NULL) {
+  while((pos = strstr(path, "/..")) != NULL) { // FIXME: this would also filter out valid paths like /foo/..bar
     int restlen = strlen(pos + 3);
     memmove(pos, pos + 3, restlen);
     pos[restlen] = 0;
