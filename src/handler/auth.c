@@ -17,9 +17,11 @@
 static int match_scope(struct rs_scope *scope, evhtp_request_t *req) {
   const char *file_path = REQUEST_GET_PATH(req);
   log_debug("checking scope, name: %s, write: %d", scope->name, scope->write);
+  int scope_len = strlen(scope->name);
   // check path
   if( (strcmp(scope->name, "") == 0) || // root scope
-      (strncmp(file_path + 1, scope->name, scope->len) == 0) ) { // other scope
+      ((strncmp(file_path + 1, scope->name, scope_len) == 0) && // other scope
+       file_path[1 + scope_len] == '/') ) {
     log_debug("path authorized");
     // check mode
     if(scope->write || IS_READ(req)) {
@@ -41,9 +43,11 @@ int authorize_request(evhtp_request_t *req) {
       log_debug("Got token: %s", token);
       struct rs_authorization *auth = lookup_authorization(username, token);
       if(auth != NULL) {
-        log_debug("Got authorization (%p, scopes: %p)", auth, auth->scopes);
+        log_debug("Got authorization (%p, scopes: %d)", auth, auth->scopes.count);
         struct rs_scope *scope;
-        for(scope = auth->scopes; scope != NULL; scope = scope->next) {
+        int i;
+        for(i=0;i<auth->scopes.count;i++) {
+          scope = auth->scopes.ptr[i];
           log_debug("Compare scope %s", scope->name);
           if(match_scope(scope, req) == 0) {
             return 0;
