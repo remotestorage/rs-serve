@@ -2,6 +2,9 @@ CFLAGS=${shell pkg-config libevent_openssl --cflags} -ggdb -Wall --std=c99 $(INC
 LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic -lattr -lpthread
 INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/oniguruma/
 
+TOOLS = tools/add-token tools/remove-token tools/list-tokens tools/lookup-token
+TOOLS_LDFLAGS = -ldb
+
 BASE_OBJECTS=src/config.o
 COMMON_OBJECTS=src/common/log.o src/common/user.o src/common/auth.o src/common/json.o
 HANDLER_OBJECTS=src/handler/storage.o src/handler/auth.o src/handler/webfinger.o src/handler/dispatch.o
@@ -24,25 +27,17 @@ rs-serve: $(STATIC_LIBS) $(OBJECTS)
 	@echo "[CC] ${shell echo $@ | sed 's/src\///' | sed 's/\.o//'}"
 	@$(CC) -c $< -o $@ $(CFLAGS)
 
-tools: tools/add-token tools/remove-token tools/list-tokens
+tools: $(TOOLS)
 
 .PHONY: tools
 
-tools/add-token: src/tools/add-token.o src/common/auth.o
+tools/%: src/tools/%.o src/common/auth.o
 	@echo "[LD] $@"
-	@$(CC) -o $@ src/tools/add-token.o src/common/auth.o
-
-tools/remove-token: src/tools/remove-token.o src/common/auth.o
-	@echo "[LD] $@"
-	@$(CC) -o $@ src/tools/remove-token.o src/common/auth.o
-
-tools/list-tokens: src/tools/list-tokens.o src/common/auth.o
-	@echo "[LD] $@"
-	@$(CC) -o $@ src/tools/list-tokens.o src/common/auth.o
+	@$(CC) -o $@ $< src/common/auth.o $(TOOLS_LDFLAGS)
 
 clean:
 	@echo "[CLEAN]"
-	@rm -f rs-serve tools/add-token tools/remove-token tools/list-tokens
+	@rm -f rs-serve $(TOOLS)
 	@find src/ -name '*.o' -exec rm '{}' ';'
 	@find -name '*~' -exec rm '{}' ';'
 	@find -name '*.swp' -exec rm '{}' ';'
