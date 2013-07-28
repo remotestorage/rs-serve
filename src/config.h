@@ -89,7 +89,7 @@ extern struct rs_header rs_default_headers;
 
 #define RS_MIN_UID 1000
 
-#define RS_AUTH_FILE_PATH "/var/lib/rs-serve/authorizations.dat"
+#define RS_AUTH_DB_PATH "/var/lib/rs-serve/authorizations.db"
 
 extern int rs_experimental;
 #define RS_EXPERIMENTAL rs_experimental
