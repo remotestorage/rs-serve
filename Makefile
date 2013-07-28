@@ -1,5 +1,5 @@
 CFLAGS=${shell pkg-config libevent_openssl --cflags} -ggdb -Wall --std=c99 $(INCLUDES)
-LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic -lattr -lpthread
+LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic -lattr -lpthread -ldb
 INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/oniguruma/
 
 TOOLS = tools/add-token tools/remove-token tools/list-tokens tools/lookup-token
@@ -47,13 +47,15 @@ notes:
 
 .PHONY: notes
 
-install: rs-serve
+install: all
 # install rs-esrve
 	@echo "[INSTALL] rs-serve"
 	@install -s rs-serve /usr/bin
 # install tools
 	@echo "[INSTALL] rs-list-tokens"
 	@install -s tools/list-tokens /usr/bin/rs-list-tokens
+	@echo "[INSTALL] rs-lookup-token"
+	@install -s tools/lookup-token /usr/bin/rs-lookup-token
 	@echo "[INSTALL] rs-add-token"
 	@install -s tools/add-token /usr/bin/rs-add-token
 	@echo "[INSTALL] rs-remove-token"
