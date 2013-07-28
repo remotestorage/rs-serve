@@ -14,19 +14,22 @@
 #define RS_COMMON_AUTH_H
 
 #include <sys/types.h>
+#include <stdint.h>
 
 struct rs_scope {
   char *name;
-  int len;
   char write;
+};
 
-  struct rs_scope *next;
+struct rs_scopes {
+  uint32_t count;
+  struct rs_scope **ptr;
 };
 
 struct rs_authorization {
   const char *username;
   const char *token;
-  struct rs_scope *scopes;
+  struct rs_scopes scopes;
 };
 
 void open_authorizations(char *mode);

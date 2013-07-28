@@ -32,8 +32,13 @@ int main(int argc, char **argv) {
   struct rs_authorization auth;
   auth.username = argv[1];
   auth.token = argv[2];
-  auth.scopes = NULL;
   char *scope_string;
+  auth.scopes.count = argc - 3;
+  auth.scopes.ptr = malloc(sizeof(struct rs_scope) * auth.scopes.count);
+  if(! auth.scopes.ptr) {
+    perror("Failed to allocate memory");
+    exit(EXIT_FAILURE);
+  }
   int i;
   for(i=3;i<argc;i++) {
     scope_string = argv[i];
@@ -42,15 +47,12 @@ int main(int argc, char **argv) {
     while(*sptr != ':') sptr++;
     *sptr++ = 0;
     scope->name = scope_string;
-    scope->len = strlen(scope->name);
     if(strcmp(scope->name, "root") == 0) {
       // "root" scope is a special case.
       scope->name = "";
-      scope->len = 0;
     }
     scope->write = (strcmp(sptr, "rw") == 0) ? 1 : 0;
-    scope->next = auth.scopes;
-    auth.scopes = scope;
+    auth.scopes.ptr[i-3] = scope;
   }
   add_authorization(&auth);
   print_authorization(&auth);
