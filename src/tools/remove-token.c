@@ -10,11 +10,16 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <db.h>
 
 #include "common/auth.h"
 
@@ -31,9 +36,8 @@ int main(int argc, char **argv) {
   struct rs_authorization auth;
   auth.username = argv[1];
   auth.token = argv[2];
-  auth.scopes = NULL;
   int success = remove_authorization(&auth);
   close_authorizations();
-  fprintf(stderr, (success == 0) ? "Token removed.\n" : "Token not found!\n");
+  fprintf(stderr, (success == DB_NOTFOUND) ? "Token not found!\n" : (success == 0 ? "Token removed.\n" : "Error removing token!\n"));
   return success;
 }
