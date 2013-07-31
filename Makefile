@@ -15,9 +15,11 @@ STATIC_LIBS=lib/evhtp/build/libevhtp.a
 
 SUBMODULES=lib/evhtp/
 
+TESTS=test/unit/common/auth
+
 default: all
 
-all: rs-serve tools
+all: rs-serve tools tests
 
 rs-serve: $(STATIC_LIBS) $(OBJECTS)
 	@echo "[LD] $@"
@@ -37,7 +39,7 @@ tools/%: src/tools/%.o src/common/auth.o
 
 clean:
 	@echo "[CLEAN]"
-	@rm -f rs-serve $(TOOLS)
+	@rm -f rs-serve $(TOOLS) $(TESTS)
 	@find src/ -name '*.o' -exec rm '{}' ';'
 	@find -name '*~' -exec rm '{}' ';'
 	@find -name '*.swp' -exec rm '{}' ';'
@@ -79,8 +81,15 @@ else
 	@echo "(can't update /etc/rcN.d, no idea how that works on your system)"
 endif
 
-test: all
-	@test/run.sh
+tests: $(TESTS)
+
+test/unit/common/auth: test/unit/common/auth.o src/common/auth.o
+	@echo "[LD] test/unit/common/auth"
+	@$(CC) $< -o $@ $(LDFLAGS) src/common/auth.o
+	@echo "[TEST] common/auth"
+	@test/unit/common/auth
+
+.PHONY: $(TESTS)
 
 leakcheck: all
 	scripts/leakcheck.sh

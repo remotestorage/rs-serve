@@ -13,3 +13,4 @@ tools/lookup-token
 
 tmp/
 
+test/unit/common/auth
