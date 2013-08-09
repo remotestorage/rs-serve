@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
   close_authorizations();
   if(auth) {
     print_authorization(auth);
+    printf("\n");
     return 0;
   } else {
     fprintf(stderr, "No authorization found!\n");

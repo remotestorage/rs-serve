@@ -56,5 +56,6 @@ int main(int argc, char **argv) {
   }
   add_authorization(&auth);
   print_authorization(&auth);
+  printf("\n");
   close_authorizations();
 }

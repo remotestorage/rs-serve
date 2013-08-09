@@ -70,7 +70,7 @@ int remove_authorization(struct rs_authorization *auth) {
   char *key = malloc(keylen + 1);
   if(key == NULL) {
     perror("Failed to allocate memory");
-    return NULL;
+    return -1;
   }
   sprintf(key, "%s|%s", auth->username, auth->token);
   DBT db_key, db_value;
@@ -271,19 +271,24 @@ int add_authorization(struct rs_authorization *auth) {
   }
   int put_result = auth_db->put(auth_db, NULL, &db_key, &db_value, 0);
   fprintf(stderr, "PUT result: %d\n", put_result);
+  return 0;
 }
 
 void print_authorization(struct rs_authorization *auth) {
-  printf("User: %s, Token: %s\n", auth->username, auth->token);
+  printf("{\n  \"user\": \"%s\",\n  \"token\": \"%s\",\n  \"scopes\": {", auth->username, auth->token);
   struct rs_scope *scope;
   int i;
   for(i=0;i<auth->scopes.count;i++) {
+    if(i != 0) {
+      printf(",");
+    }
     scope = auth->scopes.ptr[i];
-    printf(" - %s (%s)\n", *scope->name == 0 ? "(root)" : scope->name, scope->write ? "read-write" : "read-only");
+    printf("\n    \"%s\": \"%s\"", scope->name, scope->write ? "rw" : "r");
   }
+  printf("\n  }\n}");
 }
 
-void list_authorizations() {
+void list_authorizations(const char *username) {
   DBC *cursor;
   int cursor_result = auth_db->cursor(auth_db, NULL, &cursor, 0);
   switch(cursor_result) {
@@ -330,9 +335,18 @@ void list_authorizations() {
     return;
   }
 
+  int i = 0;
+  printf("[");
   do {
     unpack_authorization(auth, &db_value);
-    print_authorization(auth);
+    if(username == NULL || strcmp(auth->username, username) == 0) {
+      if(i != 0) {
+        printf(", ");
+      }
+      print_authorization(auth);
+      i++;
+    }
     memset(&db_key, 0, sizeof(DBT));
   } while(cursor->get(cursor, &db_key, &db_value, DB_NEXT) != DB_NOTFOUND);
+  printf("]\n");
 }

@@ -10,11 +10,12 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <fcntl.h>
 #include "common/auth.h"
 
-int main() {
+int main(int argc, char **argv) {
   open_authorizations("r");
-  list_authorizations();
+  list_authorizations(argc > 1 ? argv[1] : NULL);
   close_authorizations();
 }
