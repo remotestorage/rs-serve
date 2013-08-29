@@ -16,6 +16,10 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct rs_scope {
   char *name;
   char write;
@@ -32,13 +36,18 @@ struct rs_authorization {
   struct rs_scopes scopes;
 };
 
-void open_authorizations(char *mode);
+void open_authorizations(const char *mode);
 void close_authorizations();
 int add_authorization(struct rs_authorization *auth);
 int remove_authorization(struct rs_authorization *auth);
-void list_authorizations(const char *username);
+void list_authorizations(const char *username, void (*cb)(struct rs_authorization*, void*), void *ctx);
+void print_authorizations(const char *username);
 void print_authorization(struct rs_authorization *auth);
 struct rs_authorization *lookup_authorization(const char *username, const char *token);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

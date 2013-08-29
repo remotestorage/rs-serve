@@ -37,7 +37,8 @@ void print_db_error(const DB_ENV *env, const char *errpfx, const char *msg) {
   fprintf(stderr, "DB ERROR: %s: %s\n", errpfx, msg);
 }
 
-void open_authorizations(char *mode) {
+void open_authorizations(const char *mode) {
+  if(auth_db) return;
   uint32_t flags;
 
   if(db_create(&auth_db, NULL, 0) != 0) {
@@ -61,6 +62,7 @@ void open_authorizations(char *mode) {
 }
 
 void close_authorizations() {
+  if(! auth_db) return;
   auth_db->close(auth_db, 0);
   auth_db = NULL;
 }
@@ -288,7 +290,7 @@ void print_authorization(struct rs_authorization *auth) {
   printf("\n  }\n}");
 }
 
-void list_authorizations(const char *username) {
+void print_authorizations(const char *username) {
   DBC *cursor;
   int cursor_result = auth_db->cursor(auth_db, NULL, &cursor, 0);
   switch(cursor_result) {
@@ -349,4 +351,79 @@ void list_authorizations(const char *username) {
     memset(&db_key, 0, sizeof(DBT));
   } while(cursor->get(cursor, &db_key, &db_value, DB_NEXT) != DB_NOTFOUND);
   printf("]\n");
+}
+
+void free_authorization(struct rs_authorization *auth) {
+  if(auth->scopes.ptr) {
+    uint32_t n = auth->scopes.count, i;
+    for(i=0;i<n;i++) {
+      if(auth->scopes.ptr[i]->name) {
+        //fprintf(stderr, "Will free %s (%p)\n", auth->scopes.ptr[i]->name, auth->scopes.ptr[i]->name);
+        free(auth->scopes.ptr[i]->name);
+      }
+      free(auth->scopes.ptr[i]);
+    }
+    free(auth->scopes.ptr);
+  }
+  if(auth->username) free(auth->username);
+  if(auth->token) free(auth->token);
+}
+
+void list_authorizations(const char *username, void (*cb)(struct rs_authorization*, void*), void *ctx) {
+  DBC *cursor;
+  int cursor_result = auth_db->cursor(auth_db, NULL, &cursor, 0);
+  switch(cursor_result) {
+  case 0: break;
+  case DB_REP_HANDLE_DEAD:
+    fprintf(stderr, "DB->cursor() returned DB_REP_HANDLE_DEAD\n");
+    exit(EXIT_FAILURE);
+  case DB_REP_LOCKOUT:
+    fprintf(stderr, "DB->cursor() returned DB_REP_LOCKOUT\n");
+    exit(EXIT_FAILURE);
+  case EINVAL:
+    fprintf(stderr, "DB->cursor() returned EINVAL\n");
+    exit(EXIT_FAILURE);
+  default:
+    fprintf(stderr, "DB->cursor() returned unknown error (%d)\n", cursor_result);
+    exit(EXIT_FAILURE);
+  }
+  DBT db_key;
+  DBT db_value;
+  memset(&db_key, 0, sizeof(DBT));
+  memset(&db_value, 0, sizeof(DBT));
+  int get_result = cursor->get(cursor, &db_key, &db_value, DB_FIRST);
+  if(get_result != 0) {
+    char *msg;
+    switch(get_result) {
+    case DB_NOTFOUND: return;
+    case DB_BUFFER_SMALL: msg = "DB_BUFFER_SMALL"; break;
+    case DB_LOCK_DEADLOCK: msg = "DB_LOCK_DEADLOCK"; break;
+    case DB_LOCK_NOTGRANTED: msg = "DB_LOCK_NOTGRANTED"; break;
+    case DB_REP_HANDLE_DEAD: msg = "DB_REP_HANDLE_DEAD"; break;
+    case DB_REP_LEASE_EXPIRED: msg = "DB_REP_LEASE_EXPIRED"; break;
+    case DB_REP_LOCKOUT: msg = "DB_REP_LOCKOUT"; break;
+    case DB_SECONDARY_BAD: msg = "DB_SECONDARY_BAD"; break;
+    case EINVAL: msg = "EINVAL"; break;
+    default: msg = "(unknown error)";
+    }
+    fprintf(stderr, "cursor->get() failed: %s (%d)\n", msg, get_result);
+    abort();
+  }
+  struct rs_authorization *auth;
+  auth = malloc(sizeof(struct rs_authorization));
+  if(auth == NULL) {
+    perror("Failed to allocate memory");
+    return;
+  }
+
+  do {
+    unpack_authorization(auth, &db_value);
+    if(username == NULL || strcmp(auth->username, username) == 0) {
+      cb(auth, ctx);
+    }
+    free_authorization(auth);
+    memset(&db_key, 0, sizeof(DBT));
+  } while(cursor->get(cursor, &db_key, &db_value, DB_NEXT) != DB_NOTFOUND);
+
+  free(auth);
 }
