@@ -37,8 +37,8 @@ function generateLoginToken(callback) {
 }
 
 function verifyLoginToken(req, res, next) {
-  console.log('verify token', req.query.login_token, '(have', Object.keys(STATE.loginTokens), ')');
   if(STATE.loginTokens[req.query.login_token]) {
+    delete STATE.loginTokens[req.query.login_token];
     next();
   } else {
     // token not given, invalid or expired.
@@ -48,7 +48,10 @@ function verifyLoginToken(req, res, next) {
 
 function generateSessionToken(username, callback) {
   generateToken(64, function(token) {
-    STATE.sessions[token] = { username: username };
+    STATE.sessions[token] = {
+      username: username,
+      token: token
+    };
     callback(token);
   });
 }
@@ -66,6 +69,14 @@ function verifySessionToken(req, res, next) {
 // LOGGING
 app.use(function(req, res, next){
   console.log('%s %s', req.method, req.url);
+  next();
+});
+
+// CORS
+app.use(function(req, res, next) {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Origin');
   next();
 });
 
@@ -91,10 +102,14 @@ app.post('/authenticate', verifyLoginToken, function(req, res) {
   });
 });
 
+app.delete('/authenticate', verifySessionToken, function(req, res) {
+  delete STATE.sessions[req.session.token];
+  delete req.session;
+  res.send(204);
+});
+
 app.get('/authorizations', verifySessionToken, function(req, res) {
-  console.log('list authorizations for ' + req.session.username);
   var list = auth.list(req.session.username);
-  console.log("LIST", list);
   res.json(list);
 });
 
