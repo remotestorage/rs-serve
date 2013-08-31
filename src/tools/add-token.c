@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   auth.token = argv[2];
   char *scope_string;
   auth.scopes.count = argc - 3;
-  auth.scopes.ptr = malloc(sizeof(struct rs_scope) * auth.scopes.count);
+  auth.scopes.ptr = malloc(sizeof(struct rs_scope*) * auth.scopes.count);
   if(! auth.scopes.ptr) {
     perror("Failed to allocate memory");
     exit(EXIT_FAILURE);

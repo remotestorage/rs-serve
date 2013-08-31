@@ -16,6 +16,6 @@
 
 int main(int argc, char **argv) {
   open_authorizations("r");
-  list_authorizations(argc > 1 ? argv[1] : NULL);
+  print_authorizations(argc > 1 ? argv[1] : NULL);
   close_authorizations();
 }
