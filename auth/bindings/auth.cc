@@ -47,7 +47,11 @@ Handle<Value> Add(const Arguments& args) {
       ThrowException(Exception::Error(String::New("Failed to allocate memory")));
       return scope.Close(Undefined());
     }
-    auth_scope->name = strdup(*key);
+    if(strcmp(*key, "root") == 0) {
+      auth_scope->name = strdup("");
+    } else {
+      auth_scope->name = strdup(*key);
+    }
     auth_scope->write = (strcmp(*mode, "rw") == 0) ? 1 : 0;
     auth.scopes.ptr[i] = auth_scope;
   }
