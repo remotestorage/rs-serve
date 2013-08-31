@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="style.css">
+    <script src="mustache.js"></script>
+    <script src="session.js"></script>
+    <script src="oauthstate.js"></script>
+    <script src="ui.js"></script>
+    <script src="app.js"></script>
+  </head>
+  <body>
+    <div id="header"></div>
+    <div id="content"></div>
+  </body>
+  <script type="text/mustache" data-template-name="header">
+    <a id="logout-link" href="#">Logout</a>
+  </script>
+  <script type="text/mustache" data-template-name="login-form">
+    <h1>Login</h1>
+    <form id="login-form">
+      <div class="error">{{error}}</div>
+      <input type="text" name="username" placeholder="Username" value="{{username}}">
+      <br/>
+      <input type="password" name="password" placeholder="Password">
+      <br/>
+      <input type="submit" name="button" value="Login">
+    </form>
+  </script>
+  <script type="text/mustache" data-template-name="authorizations">
+    <h1>Authorizations</h1>
+    <ul>
+      {{#authorizations}}
+      <li><pre>{{.}}</pre></li>
+      {{/authorizations}}
+    </ul>
+  </script>
+  <script type="text/mustache" data-template-name="auth-request">
+    <h1>Authorization Request</h1>
+    <p>The app at {{origin}} requests access to the following scopes:</p>
+    <ul>
+      {{#scopes}}
+      <li>{{name}} ({{mode}})</li>
+      {{/scopes}}
+    </ul>
+    <button id="confirm-auth">Confirm</button>
+  </script>
+</html>
