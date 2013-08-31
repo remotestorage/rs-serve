@@ -10,6 +10,7 @@ COMMON_OBJECTS=src/common/log.o src/common/user.o src/common/auth.o src/common/j
 HANDLER_OBJECTS=src/handler/storage.o src/handler/auth.o src/handler/webfinger.o src/handler/dispatch.o
 PROCESS_OBJECTS=src/process/main.o
 OBJECTS=$(BASE_OBJECTS) $(COMMON_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
+HEADERS=src/rs-serve.h src/config.h src/common/auth.h src/common/json.h src/common/log.h src/common/user.h src/handler/auth.h src/handler/dispatch.h src/handler/storage.h src/handler/webfinger.h
 
 STATIC_LIBS=lib/evhtp/build/libevhtp.a
 
@@ -21,7 +22,7 @@ default: all
 
 all: rs-serve tools tests
 
-rs-serve: $(STATIC_LIBS) $(OBJECTS)
+rs-serve: $(STATIC_LIBS) $(OBJECTS) $(HEADERS)
 	@echo "[LD] $@"
 	@$(CC) -o $@ $(OBJECTS) $(STATIC_LIBS) $(LDFLAGS)
 
@@ -33,7 +34,7 @@ tools: $(TOOLS)
 
 .PHONY: tools
 
-tools/%: src/tools/%.o src/common/auth.o
+tools/%: src/tools/%.o src/common/auth.o $(HEADERS)
 	@echo "[LD] $@"
 	@$(CC) -o $@ $< src/common/auth.o $(TOOLS_LDFLAGS)
 
@@ -118,3 +119,11 @@ $(SUBMODULES):
 	@git submodule update --init $@
 
 .PHONY: submodules clean-submodules $(SUBMODULES)
+
+## JAVASCRIPT BINDINGS
+
+bindings: auth/bindings/auth.cc src/common/auth.c $(HEADERS)
+	@echo "[BINDINGS] auth"
+	@cd auth/bindings && node-gyp configure && node-gyp build
+
+.PHONY: bindings
