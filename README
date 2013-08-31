@@ -77,17 +77,34 @@ with the --hostname option.
 Virtual hosting (== hosting storage for multiple domains from a single instance)
 is currently not supported.
 
-2.3) authorization tools
+2.3) authorization
 ------------------------
 
-Authorization has to be handled elsewhere. remotestorage-00 requires the storage
-provider to bring an OAuth 2 endpoint that can do implicit grant flow.
-This endpoint is not part of rs-serve for vague reasons.
+rs-serve now comes with an authorization backend and frontend, supporting the implicit
+bearer flow as described by OAuth2. Authentication happens through PAM, so you can use
+any authentication backend supported by PAM (such as passwd/shadow files, LDAP, SQL...).
 
-In order to run a fully functional remotestorage provider, you must cook one up
-yourself (TODO: add link to un.ht customer backend) and hook it up to rs-serve.
+The Authorization server is written in JavaScript. To run the server-side component you
+need nodeJS. Also you need to build the bindings to the authorization tools of rs-serve.
+You can do this by running:
 
-See the section titled "Integrating authorization" for details.
+  make bindings
+
+To start the server run
+
+  node auth/backend/server.js
+
+It runs on port 8888 by default, you can change this by tweaking the auth/backend/server.js
+file. Note that you also need to configure the backend URL in auth/frontend/app.js.
+
+The frontend part is an unhosted web app (i.e. completely client side), so you can use
+any webserver to serve it.
+
+Once you got that all running, set the --auth-uri option of rs-serve to point to where
+you're serving the frontend.
+
+Note that while the remotestorage server itself needs to run on port 80, the authorization
+frontend and backend can run on any port you like.
 
 2.4) Storage system
 -------------------
@@ -129,6 +146,7 @@ These steps should enable you to install rs-serve.
 - libevent (>= 2.0)
 - libmagic
 - libattr
+- BerkeleyDB
 
 On Debian based systems, this should give you all you need:
 
