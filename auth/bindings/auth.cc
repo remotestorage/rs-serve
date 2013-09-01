@@ -75,10 +75,9 @@ Handle<Value> Remove(const Arguments& args) {
   EXPECT_ARGS(2);
   String::AsciiValue username(args[0]->ToString());
   String::AsciiValue token(args[1]->ToString());
-  struct rs_authorization auth = {
-    .username = *username,
-    .token = *token
-  };
+  struct rs_authorization auth = {};
+  auth.username = *username;
+  auth.token = *token;
   open_authorizations("w");
   remove_authorization(&auth);
   close_authorizations();
