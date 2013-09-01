@@ -1,0 +1,17 @@
+{
+  "name": "rs-serve-auth",
+  "desc": "(this is not a real package - just dependencies for the auth backend)",
+  "version": "0.0.1",
+  "private": false,
+  "license": "AGPL",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/remotestorage/rs-serve.git"
+  },
+  "homepage": "http://remotestorage.io",
+  "dependencies": {
+    "express": "*",
+    "unixlib": "*",
+    "crypto": "*"
+  }
+}
