@@ -125,5 +125,7 @@ $(SUBMODULES):
 bindings: auth/bindings/auth.cc src/common/auth.c $(HEADERS)
 	@echo "[BINDINGS] auth"
 	@cd auth/bindings && node-gyp configure && node-gyp build
+	@echo "[DEPS] unixlib"
+	@cd auth/backend/deps/unixlib && node-gyp configure && node-gyp build
 
 .PHONY: bindings

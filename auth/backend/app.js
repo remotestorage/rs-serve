@@ -1,6 +1,6 @@
 
 var express = require('express');
-var unixlib = require('unixlib');
+var unixlib = require('./deps/unixlib/build/Release/unixlib');
 var crypto = require('crypto');
 
 var config = require('./config');

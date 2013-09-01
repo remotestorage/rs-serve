@@ -11,7 +11,6 @@
   "homepage": "http://remotestorage.io",
   "dependencies": {
     "express": "*",
-    "unixlib": "*",
     "crypto": "*"
   }
 }

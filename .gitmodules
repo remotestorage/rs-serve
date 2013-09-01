@@ -1,3 +1,6 @@
 [submodule "lib/evhtp"]
 	path = lib/evhtp
 	url = git://github.com/ellzey/libevhtp.git
+[submodule "auth/backend/deps/unixlib"]
+	path = auth/backend/deps/unixlib
+	url = https://github.com/nilclass/node-unixlib.git
