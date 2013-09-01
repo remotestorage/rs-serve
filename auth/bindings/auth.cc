@@ -5,6 +5,7 @@
 #include "../../src/common/auth.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 #define EXPECT_ARGS(n)                          \
