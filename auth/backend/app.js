@@ -82,6 +82,8 @@ app.use(function(req, res, next) {
 
 app.use(express.bodyParser());
 
+app.use(express.static('./auth/frontend'));
+
 app.get('/authenticate', function(req, res) {
   generateLoginToken(function(token) {
     res.json({
