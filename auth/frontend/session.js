@@ -131,6 +131,10 @@ var Session = function(baseUrl) {
   }.bind(this));
 };
 
+var SUCCESS_CODES = {
+  200: true, 201: true, 204: true, 304: true
+};
+
 Session.prototype = {
 
   listAuthorizations: function(callback) {
@@ -214,7 +218,11 @@ Session.prototype = {
       }
     }
     xhr.onload = function() {
-      callback(null, xhr);
+      if(SUCCESS_CODES[xhr.status]) {
+        callback(null, xhr);
+      } else {
+        callback("Request failed with status " + xhr.status + " (" + xhr.responseText + ")");
+      }
     };
     xhr.onerror = function(error) {
       callback(error);
