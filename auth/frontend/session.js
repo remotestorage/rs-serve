@@ -182,22 +182,15 @@ Session.prototype = {
 
   _authenticate: function(username, password, callback) {
     callback = callback.bind(this);
-    this._request('GET', '/authenticate', {}, function(error, xhr) {
-      if(error) { callback(error); return; }
-      this._request(
-        'POST', '/authenticate?login_token=' +
-          encodeURIComponent(JSON.parse(xhr.responseText).login_token),
-        {
-          body: JSON.stringify({
-            username: username,
-            password: password
-          }),
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8'
-          }
-        }, parseJsonCb(callback)
-      );
-    });
+    this._request('POST', '/authenticate', {
+      body: JSON.stringify({
+        username: username,
+        password: password
+      }),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8'
+      }
+    }, parseJsonCb(callback));
   },
 
   _sessionRequest: function(method, path, options, callback) {

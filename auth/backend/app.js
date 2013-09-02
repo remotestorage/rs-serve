@@ -12,7 +12,6 @@ var app = express();
 module.exports = app;
 
 var STATE = {
-  loginTokens: {},
   sessions: {}
 };
 
@@ -24,30 +23,6 @@ function generateToken(bytes, callback) {
       callback(buf.toString('base64'));
     }
   });
-}
-
-function generateLoginToken(callback) {
-  generateToken(32, function(token) {
-    STATE.loginTokens[token] = true;
-    callback(token);
-    setTimeout(function() {
-      delete STATE.loginTokens[token];
-    }, config.loginTokenTimeout);
-  });
-}
-
-function verifyLoginToken(req, res, next) {
-  console.log("WARNING: login token verification disabled for now. There may be a bug.");
-  next();
-  return;
-
-  if(STATE.loginTokens[req.query.login_token]) {
-    delete STATE.loginTokens[req.query.login_token];
-    next();
-  } else {
-    // token not given, invalid or expired.
-    res.send(401, "ERROR: couldn't verify login_token!");
-  }
 }
 
 function generateSessionToken(username, callback) {
@@ -88,15 +63,7 @@ app.use(express.bodyParser());
 
 app.use(express.static('./auth/frontend'));
 
-app.get('/authenticate', function(req, res) {
-  generateLoginToken(function(token) {
-    res.json({
-      login_token: token // temporary token, expires after a while.
-    });
-  });
-});
-
-app.post('/authenticate', verifyLoginToken, function(req, res) {
+app.post('/authenticate', function(req, res) {
   unixlib.pamauth('remotestorage', req.body.username, req.body.password, function(result) {
     if(result) {
       generateSessionToken(req.body.username, function(key) {
