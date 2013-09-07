@@ -42,7 +42,9 @@ int authorize_request(evhtp_request_t *req) {
       token = auth_header + 7;
       log_debug("Got token: %s", token);
       struct rs_authorization *auth = lookup_authorization(username, token);
-      if(auth != NULL) {
+      if(auth == NULL) {
+        log_debug("Authorization not found");
+      } else {
         log_debug("Got authorization (%p, scopes: %d)", auth, auth->scopes.count);
         struct rs_scope *scope;
         int i;
