@@ -31,8 +31,8 @@ struct rs_scopes {
 };
 
 struct rs_authorization {
-  const char *username;
-  const char *token;
+  char *username;
+  char *token;
   struct rs_scopes scopes;
 };
 
