@@ -3,4 +3,7 @@ var http = require('http');
 
 var app = require('./app');
 
-http.createServer(app).listen(8888);
+var port = 8888;
+
+http.createServer(app).listen(port);
+console.log("Auth server running on http://0.0.0.0:" + port + "/");
