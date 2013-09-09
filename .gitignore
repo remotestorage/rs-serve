@@ -15,4 +15,6 @@ tmp/
 
 test/unit/common/auth
 
-node_modules
+node_modules/
+
+auth/bindings/build/
