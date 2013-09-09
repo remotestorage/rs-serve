@@ -21,14 +21,14 @@ Contents:
 1) Introduction
 ---------------
 
-remotestorage is an open specification for personal data storage. It is supposed to
-replace the currently popular proprietary "cloud storage" protocols using an open
-standard and thereby promoting the seperation of applications and their data on the
-web.
+remotestorage is an open specification for personal data storage. It is supposed
+to replace the currently popular proprietary "cloud storage" protocols using an
+open standard and thereby promoting the seperation of applications and their
+data on the web.
 
 For more information, check out these links:
-  * http://remotestorage.io/ - Information about the remotestorage protocol and
-                               current implementations.
+  * http://remotestorage.io/ - Information about the remotestorage protocol
+                               and current implementations.
   * http://unhosted.org/     - Philosophy, hands-on Tutorials and App collection.
 
 2) Overview
@@ -39,16 +39,16 @@ rs-serve brings three things:
 * a HTTP endpoint implementing webfinger: /.well-known/webfinger
 * a collection of scripts to manage authorizations: add/remove/list token(s)
 
-The user management is taken care of by the system. Each system user with an allowed
-user id (default: >= 1000. Minimum defined by RS_MIN_UID in src/config.h) can access
-their ~/storage/ directory  (configurable via --dir option)  using the remotestorage
-endpoint.
+The user management is taken care of by the system. Each system user with an
+allowed user id (default: >= 1000. Minimum defined by RS_MIN_UID in
+src/config.h) can access their ~/storage/ directory  (configurable via
+--dir option)  using the remotestorage endpoint.
 
-rs-serve is entirely written in C, using mostly POSIX library functions. It relies
-on a few portable libraries, see the list under "Dependencies" below.
-It does however currently use the signalfd() system call, which is only available
-on Linux. (this is a solvable problem though, if you want to be able to run on
-another system, please open an issue to ask for help)
+rs-serve is entirely written in C, using mostly POSIX library functions. It
+relies on a few portable libraries, see the list under "Dependencies" below.
+It does however currently use the signalfd() system call, which is only
+available on Linux. (this is a solvable problem though, if you want to
+be able to run on another system, please open an issue to ask for help)
 
 2.1) remotestorage
 ------------------
@@ -69,23 +69,26 @@ Currently the following features are supported:
 2.2) webfinger
 --------------
 
-The webfinger implementation only serves information about remotestorage and is
-currently not extensible.
-The hostname part of user addresses is expected to be the hostname set for the
-rs-serve instance. This currently defaults to "local.dev" and can be overridden
-with the --hostname option.
-Virtual hosting (== hosting storage for multiple domains from a single instance)
-is currently not supported.
+The webfinger implementation only serves information about remotestorage
+and is currently not extensible.
+The hostname part of user addresses is expected to be the hostname set for
+the rs-serve instance. This currently defaults to "local.dev" and can be
+overridden with the --hostname option.
+Virtual hosting (== hosting storage for multiple domains from a single
+instance) is currently not supported.
 
 2.3) authorization
 ------------------------
 
-rs-serve now comes with an authorization backend and frontend, supporting the implicit
-bearer flow as described by OAuth2. Authentication happens through PAM, so you can use
-any authentication backend supported by PAM (such as passwd/shadow files, LDAP, SQL...).
+rs-serve now comes with an authorization backend and frontend, supporting the
+implicit bearer flow as described by OAuth2. Authentication happens through PAM,
+so you can use any authentication backend supported by PAM (such as
+passwd/shadow files, LDAP, SQL...).
 
-The Authorization server is written in JavaScript. To run the server-side component you
-need nodeJS. Also you need to build the bindings to the authorization tools of rs-serve.
+The Authorization server is written in JavaScript. To run the server-side
+component you need nodeJS. Also you need to build the bindings to the
+authorization tools of rs-serve.
+
 You can do this by running:
 
   make bindings
@@ -94,17 +97,18 @@ To start the server run
 
   node auth/backend/server.js
 
-It runs on port 8888 by default, you can change this by tweaking the auth/backend/server.js
-file. Note that you also need to configure the backend URL in auth/frontend/app.js.
+It runs on port 8888 by default, you can change this by tweaking the
+auth/backend/server.js file. Note that you also need to configure the backend
+URL in auth/frontend/app.js.
 
-The frontend part is an unhosted web app (i.e. completely client side), so you can use
-any webserver to serve it.
+The frontend part is an unhosted web app (i.e. completely client side), so you
+can use any webserver to serve it.
 
-Once you got that all running, set the --auth-uri option of rs-serve to point to where
-you're serving the frontend, e.g. "https://example.com/?username=%s".
+Once you got that all running, set the --auth-uri option of rs-serve to point
+to where you're serving the frontend, e.g. "https://example.com/?username=%s".
 
-Note that while the remotestorage server itself needs to run on port 80, the authorization
-frontend and backend can run on any port you like.
+Note that while the remotestorage server itself needs to run on port 80, the
+authorization frontend and backend can run on any port you like.
 
 2.4) Storage system
 -------------------
