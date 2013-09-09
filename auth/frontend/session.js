@@ -175,6 +175,7 @@ Session.prototype = {
       } else {
         delete this.username;
         delete this.sessionToken;
+        delete localStorage['rs-serve-auth-session'];
         this._emit('not-authenticated');
       }
     });

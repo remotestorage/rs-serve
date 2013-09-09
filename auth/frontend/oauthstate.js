@@ -32,5 +32,6 @@ OAuthState.ALLOWED_KEYS = {
   client_id: true,
   redirect_uri: true,
   scope: true,
-  state: true
+  state: true,
+  username: true
 };

@@ -101,7 +101,7 @@ The frontend part is an unhosted web app (i.e. completely client side), so you c
 any webserver to serve it.
 
 Once you got that all running, set the --auth-uri option of rs-serve to point to where
-you're serving the frontend.
+you're serving the frontend, e.g. "https://example.com/?username=%s".
 
 Note that while the remotestorage server itself needs to run on port 80, the authorization
 frontend and backend can run on any port you like.

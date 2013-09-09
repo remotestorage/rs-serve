@@ -19,6 +19,12 @@ var UI = function(session, oauthstate) {
 
 UI.prototype = {
   _showLoginForm: function(params) {
+    if(! params) {
+      params = {};
+    }
+    if(! params.username && this.oauthstate) {
+      params.username = this.oauthstate.username;
+    }
     this.containers.header.innerHTML = '';
     this._render('content', 'login-form', params);
     this.loginForm = document.getElementById('login-form');
