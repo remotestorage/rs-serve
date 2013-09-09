@@ -102,7 +102,8 @@ auth/backend/server.js file. Note that you also need to configure the backend
 URL in auth/frontend/app.js.
 
 The frontend part is an unhosted web app (i.e. completely client side), so you
-can use any webserver to serve it.
+can use any webserver to serve it. However, for simplicity the backend server
+will also automatically serve all files from auth/frontend/.
 
 Once you got that all running, set the --auth-uri option of rs-serve to point
 to where you're serving the frontend, e.g. "https://example.com/?username=%s".
