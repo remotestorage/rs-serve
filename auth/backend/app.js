@@ -45,6 +45,14 @@ function verifySessionToken(req, res, next) {
   }
 }
 
+function verifySessionTokenOptional(req, res, next) {
+  var session = STATE.sessions[req.query.session_token];
+  if(session) {
+    req.session = session;
+  }
+  next();
+}
+
 // LOGGING
 app.use(function(req, res, next){
   console.log('%s %s', req.method, req.url);
@@ -75,9 +83,11 @@ app.post('/authenticate', function(req, res) {
   });
 });
 
-app.delete('/authenticate', verifySessionToken, function(req, res) {
-  delete STATE.sessions[req.session.token];
-  delete req.session;
+app.delete('/authenticate', verifySessionTokenOptional, function(req, res) {
+  if(req.session) {
+    delete STATE.sessions[req.session.token];
+    delete req.session;
+  }
   res.send(204);
 });
 
