@@ -32,6 +32,7 @@ void pack_authorization(DBT *dest, struct rs_authorization *src);
 int unpack_authorization(struct rs_authorization *dest, DBT *src);
 
 DB *auth_db;
+DB_ENV *auth_db_env;
 
 void print_db_error(const DB_ENV *env, const char *errpfx, const char *msg) {
   fprintf(stderr, "DB ERROR: %s: %s\n", errpfx, msg);
@@ -39,26 +40,37 @@ void print_db_error(const DB_ENV *env, const char *errpfx, const char *msg) {
 
 void open_authorizations(const char *mode) {
   if(auth_db) return;
-  uint32_t flags;
+  uint32_t db_env_flags, db_flags;
 
-  if(db_create(&auth_db, NULL, 0) != 0) {
+  db_env_flags = DB_CREATE | DB_INIT_CDB;
+
+  if(db_env_create(&auth_db_env, 0) != 0) {
+    fprintf(stderr, "db_env_create() failed\n");
+    abort(); // FIXME!
+  }
+
+  if(auth_db_env->open(auth_db_env, RS_AUTH_DB_PATH, db_env_flags, 0)) {
+    fprintf(stderr, "auth_db_env->open() failed\n");
+    abort(); // FIXME!
+    }
+
+  if(db_create(&auth_db, auth_db_env, 0) != 0) {
     fprintf(stderr, "db_create() failed\n");
     abort(); // FIXME!
   }
 
-  flags = DB_CREATE;
+  db_flags = DB_CREATE;
 
   /* if(mode[1] != 'w') { */
-  /*   flags |= DB_RDONLY; */
+  /*   db_flags |= DB_RDONLY; */
   /* } */
   
-  if(auth_db->open(auth_db, NULL, RS_AUTH_DB_PATH, NULL, DB_HASH, flags, 0) != 0) {
+  if(auth_db->open(auth_db, NULL, NULL, "authorizations", DB_HASH, db_flags, 0) != 0) {
     fprintf(stderr, "auth_db->open() failed\n");
     abort(); // FIXME!
   }
 
   auth_db->set_errcall(auth_db, print_db_error);
-  // TODO: set_errcall etc.
 }
 
 void close_authorizations() {

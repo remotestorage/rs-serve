@@ -66,7 +66,10 @@ install: all
 # create working dir
 	@echo "[MKDIR] /var/lib/rs-serve/"
 	@mkdir -p /var/lib/rs-serve
-# install init scxript
+# create 'authorizations' dir (root of the BDB environment used to store authorization tokens)
+	@echo "[MKDIR] /var/lib/rs-serve/authorizations/"
+	@mkdir /var/lib/rs-serve/authorizations
+# install init script
 	@echo "[INSTALL] /etc/init.d/rs-serve"
 	@install -m 0755 init-script.sh /etc/init.d/rs-serve
 ifeq (${shell test -f /etc/default/rs-serve >/dev/null 2>&1 ; echo $$?}, 0)
