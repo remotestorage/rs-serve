@@ -298,8 +298,11 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
     }
     close(rootdirfd);
     free(path_copy);
+    char *etag_string = make_etag(&stat_buf);
+    ADD_RESP_HEADER_CP(request, "ETag", etag_string);
   } else {
-    // file doesn't exist, ignore it.
+    // file doesn't exist, return 404.
+    return 404;
   }
 
   free(storage_root);
