@@ -42,7 +42,7 @@ void open_authorizations(const char *mode) {
   if(auth_db) return;
   uint32_t db_env_flags, db_flags;
 
-  db_env_flags = DB_CREATE | DB_INIT_CDB;
+  db_env_flags = DB_CREATE | DB_INIT_CDB | DB_INIT_MPOOL;
 
   if(db_env_create(&auth_db_env, 0) != 0) {
     fprintf(stderr, "db_env_create() failed\n");
