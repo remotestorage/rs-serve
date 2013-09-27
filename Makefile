@@ -6,7 +6,7 @@ TOOLS = tools/add-token tools/remove-token tools/list-tokens tools/lookup-token
 TOOLS_LDFLAGS = -ldb
 
 BASE_OBJECTS=src/config.o
-COMMON_OBJECTS=src/common/log.o src/common/user.o src/common/auth.o src/common/json.o
+COMMON_OBJECTS=src/common/log.o src/common/user.o src/common/auth.o src/common/json.o src/common/attributes.o
 HANDLER_OBJECTS=src/handler/storage.o src/handler/auth.o src/handler/webfinger.o src/handler/dispatch.o
 PROCESS_OBJECTS=src/process/main.o
 OBJECTS=$(BASE_OBJECTS) $(COMMON_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)

@@ -21,7 +21,6 @@
  *
  */
 
-static char *make_etag(struct stat *stat_buf);
 static char *make_disk_path(char *user, char *path, char **storage_root);
 static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path,
                                  struct stat *stat_buf);
@@ -30,7 +29,6 @@ static evhtp_res serve_file_head(evhtp_request_t *request_t, char *disk_path,
 static evhtp_res serve_file(evhtp_request_t *request, const char *disk_path,
                       struct stat *stat_buf);
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body);
-static int content_type_to_xattr(int fd, const char *content_type);
 static int compare_version(struct stat *stat_buf, const char *expected);
 
 evhtp_res storage_handle_head(evhtp_request_t *request) {
@@ -59,7 +57,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
                                    REQUEST_GET_PATH(request),
                                    &storage_root);
   if(disk_path == NULL) {
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
   // check if file exists (needed for preconditions and response code)
@@ -102,7 +100,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
       free(user_entry);
       free(bufptr);
     } else {
-      return 500;
+      return EVHTP_RES_SERVERR;
     }
   } while(0);
 
@@ -114,9 +112,12 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
       log_error("strdup() failed: %s", strerror(errno));
       free(disk_path);
       free(storage_root);
-      return 500;
+      return EVHTP_RES_SERVERR;
     }
     char *dir_path = dirname(path_copy);
+    if(strcmp(dir_path, ".") == 0) { // PUT to file below root directory
+      continue;
+    }
     char *saveptr = NULL;
     char *dir_name;
     int dirfd = open(storage_root, O_RDONLY), prevfd;
@@ -125,9 +126,10 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
       free(disk_path);
       free(path_copy);
       free(storage_root);
-      return 500;
+      return EVHTP_RES_SERVERR;
     }
     struct stat dir_stat;
+    log_debug("strtok_r(\"%s\", ...), (dir_path: %p, saveptr: %p)", dir_path, dir_path, saveptr);
     for(dir_name = strtok_r(dir_path, "/", &saveptr);
         dir_name != NULL;
         dir_name = strtok_r(NULL, "/", &saveptr)) {
@@ -150,7 +152,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
           free(disk_path);
           free(path_copy);
           free(storage_root);
-          return 500;
+          return EVHTP_RES_SERVERR;
         }
 
         if(fchownat(dirfd, dir_name, uid, gid, AT_SYMLINK_NOFOLLOW) != 0) {
@@ -166,7 +168,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
         free(disk_path);
         free(path_copy);
         free(storage_root);
-        return 500;
+        return EVHTP_RES_SERVERR;
       }
     }
 
@@ -183,7 +185,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   if(fd == -1) {
     log_error("open() failed to open file \"%s\": %s", disk_path, strerror(errno));
     free(disk_path);
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
   if(! exists) {
@@ -204,7 +206,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   }
   
   // remember content type in extended attributes
-  if(content_type_to_xattr(fd, content_type) != 0) {
+  if(content_type_to_xattr(disk_path, content_type) != 0) {
     log_error("Setting xattr for content type failed. Ignoring.");
   }
 
@@ -215,10 +217,10 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
   if(stat(disk_path, &stat_buf) != 0) {
     log_error("failed to stat() file after writing: %s", strerror(errno));
     free(disk_path);
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
-  char *etag_string = make_etag(&stat_buf);
+  char *etag_string = get_etag(disk_path);
 
   ADD_RESP_HEADER_CP(request, "Content-Type", content_type);
   ADD_RESP_HEADER_CP(request, "ETag", etag_string);
@@ -241,7 +243,7 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
                                    REQUEST_GET_PATH(request),
                                    &storage_root);
   if(disk_path == NULL) {
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
   struct stat stat_buf;
@@ -251,10 +253,13 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
       return 400;
     }
 
+    char *etag_string = get_etag(disk_path);
+    ADD_RESP_HEADER_CP(request, "ETag", etag_string);
+
     // file exists, delete it.
     if(unlink(disk_path) == -1) {
       log_error("unlink() failed: %s", strerror(errno));
-      return 500;
+      return EVHTP_RES_SERVERR;
     }
     
     /* 
@@ -264,7 +269,7 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
     if(path_copy == NULL) {
       log_error("strdup() failed to copy path: %s", strerror(errno));
       free(disk_path);
-      return 500;
+      return EVHTP_RES_SERVERR;
     }
     char *dir_path;
     int rootdirfd = open(storage_root, O_RDONLY);
@@ -272,7 +277,7 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
       log_error("failed to open() storage root: %s", strerror(errno));
       free(path_copy);
       free(disk_path);
-      return 500;
+      return EVHTP_RES_SERVERR;
     }
     int result;
     // skip leading slash
@@ -292,14 +297,12 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
           log_error("unlinkat() failed to remove parent directory: %s", strerror(errno));
           free(path_copy);
           free(disk_path);
-          return 500;
+          return EVHTP_RES_SERVERR;
         }
       }
     }
     close(rootdirfd);
     free(path_copy);
-    char *etag_string = make_etag(&stat_buf);
-    ADD_RESP_HEADER_CP(request, "ETag", etag_string);
   } else {
     // file doesn't exist, return 404.
     return 404;
@@ -308,16 +311,6 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
   free(storage_root);
 
   return 200;
-}
-
-static char *make_etag(struct stat *stat_buf) {
-  char *etag = malloc(21);
-  if(etag == NULL) {
-    log_error("malloc() failed: %s", strerror(errno));
-    return NULL;
-  }
-  snprintf(etag, 20, "%lld", ((long long int)stat_buf->st_mtime) * 1000);
-  return etag;
 }
 
 size_t json_buf_writer(char *buf, size_t count, void *arg) {
@@ -331,7 +324,7 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
   DIR *dir = opendir(disk_path);
   if(dir == NULL) {
     log_error("opendir() failed: %s", strerror(errno));
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
   struct dirent *entryp = malloc(offsetof(struct dirent, d_name) +
                                  pathconf(disk_path, _PC_NAME_MAX) + 1);
@@ -339,7 +332,7 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
   if(entryp == NULL) {
     log_error("malloc() failed while creating directory pointer: %s",
               strerror(errno));
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
   struct json *json = new_json(json_buf_writer, buf);
@@ -367,7 +360,7 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
     char key_string[entry_len + 2];
     sprintf(key_string, "%s%s", entryp->d_name,
             S_ISDIR(file_stat_buf.st_mode) ? "/": "");
-    char *val_string = make_etag(&file_stat_buf);
+    char *val_string = get_etag(full_path);
 
     json_write_key_val(json, key_string, val_string);
 
@@ -378,12 +371,12 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
 
   free_json(json);
 
-  char *etag = make_etag(stat_buf);
+  char *etag = get_etag(disk_path);
   if(etag == NULL) {
-    log_error("make_etag() failed");
+    log_error("get_etag() failed");
     free(entryp);
     closedir(dir);
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
   ADD_RESP_HEADER(request, "Content-Type", "application/json; charset=UTF-8");
@@ -394,101 +387,6 @@ static evhtp_res serve_directory(evhtp_request_t *request, char *disk_path, stru
   closedir(dir);
   return EVHTP_RES_OK;
 }
-
-static char *get_xattr(const char *path, const char *key, int maxlen) {
-  int len = 32;
-  char *value = NULL;
-  for(value = malloc(len);len<=maxlen;value = realloc(value, len+=16)) {
-    if(value == NULL) {
-      log_error("malloc() / realloc() failed: %s", strerror(errno));
-      return NULL;
-    }
-    int actual_len = getxattr(path, key, value, len);
-    if(actual_len > 0) {
-      value[actual_len] = 0;
-      return value;
-    } else {
-      if(errno == ERANGE) {
-        // buffer too small.
-        continue;
-      } else if(errno == ENOATTR) {
-        // attribute not set
-        free(value);
-        return NULL;
-      } else if(errno == ENOTSUP) {
-        // xattr not supported
-        log_error("File system doesn't support extended attributes! You may want to use another one.");
-        free(value);
-        return NULL;
-      } else {
-        log_error("Unexpected error while getting %s attribute: %s", key, strerror(errno));
-        free(value);
-        return NULL;
-      }
-    }
-  }
-  log_error("%s attribute seems to be longer than %d bytes. That is simply unreasonable.", key, maxlen);
-  free(value);
-  return NULL;
-}
-
-static char *content_type_from_xattr(const char *path) {
-  char *mime_type = get_xattr(path, "user.mime_type", 128);
-  if(mime_type == NULL) {
-    return NULL;
-  }
-  char *charset = get_xattr(path, "user.charset", 64);
-  if(charset == NULL) {
-    return mime_type;
-  }
-  int mt_len = strlen(mime_type);
-  char *content_type = realloc(mime_type, mt_len + strlen(charset) + 10 + 1);
-  if(content_type == NULL) {
-    log_error("realloc() failed: %s", strerror(errno));
-    free(charset);
-    return mime_type;
-  }
-  sprintf(content_type + mt_len, "; charset=%s", charset);
-  free(charset);
-  return content_type;
-}
-
-static int content_type_to_xattr(int fd, const char *content_type) {
-  char *content_type_copy = strdup(content_type), *saveptr = NULL;
-  if(content_type_copy == NULL) {
-    log_error("strdup() failed: %s", strerror(errno));
-    return -1;
-  }
-  char *mime_type = strtok_r(content_type_copy, ";", &saveptr);
-  log_debug("extracted mime type: %s", mime_type);
-  char *rest = strtok_r(NULL, "", &saveptr);
-  char *charset_begin = NULL, *charset = NULL;
-  if(rest) {
-    charset_begin = strstr(rest, "charset=");
-    if(charset_begin) {
-      charset = charset_begin + 8;
-      log_debug("extracted charset: %s", charset);
-    }
-  }
-  if(charset == NULL) {
-    // FIXME: should this rather be binary or us-ascii?
-    charset = "UTF-8";
-    log_debug("guessed charset: %s", charset);
-  }
-  if(fsetxattr(fd, "user.mime_type", mime_type, strlen(mime_type) + 1, 0) != 0) {
-    log_error("fsetxattr() failed: %s", strerror(errno));
-    free(content_type_copy);
-    return -1;
-  }
-  if(fsetxattr(fd, "user.charset", charset, strlen(charset) + 1, 0) != 0) {
-    log_error("fsetxattr() failed: %s", strerror(errno));
-    free(content_type_copy);
-    return -1;
-  }
-  free(content_type_copy);
-  return 0;
-}
-
 
 static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, struct stat *stat_buf, const char *mime_type) {
 
@@ -514,14 +412,15 @@ static evhtp_res serve_file_head(evhtp_request_t *request, char *disk_path, stru
     log_debug("HEAD file found");
   }
     
-  char *etag_string = make_etag(stat_buf);
+  char *etag_string = get_etag(disk_path);
   if(etag_string == NULL) {
-    log_error("make_etag() failed");
+    log_error("get_etag() failed");
     return EVHTP_RES_SERVERR;
   }
 
   evhtp_header_t *if_none_match_header = evhtp_headers_find_header(request->headers_in, "If-None-Match");
   if(if_none_match_header) {
+    // FIXME: support multiple comma-separated ETags in If-None-Match header
     if(strcmp(if_none_match_header->val, etag_string) == 0) {
       free(etag_string);
       return EVHTP_RES_NOTMOD;
@@ -574,7 +473,7 @@ static evhtp_res serve_file(evhtp_request_t *request, const char *disk_path, str
   int fd = open(disk_path, O_RDONLY | O_NONBLOCK);
   if(fd < 0) {
     log_error("open() failed: %s", strerror(errno));
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
   while(evbuffer_read(request->buffer_out, fd, 4096) != 0);
   close(fd);
@@ -631,7 +530,7 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
                                    REQUEST_GET_PATH(request),
                                    NULL);
   if(disk_path == NULL) {
-    return 500;
+    return EVHTP_RES_SERVERR;
   }
 
   // stat

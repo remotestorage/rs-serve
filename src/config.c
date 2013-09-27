@@ -42,6 +42,11 @@ static void print_help(const char *progname) {
           " --cert-path=<path>             - Set path to SSL certificate file.\n"
           " --key-path=<path>              - Set path to SSL key file.\n"
           " --ca-path=<path>               - Set path to SSL CA file.\n"
+          " --no-xattr                     - Don't store meta information in extended attributes.\n"
+          "                                  They will be stored in a separate Berkeley Database\n"
+          "                                  instead. Use this option if your filesystem does not\n"
+          "                                  support extended attributes or you don't want to use\n"
+          "                                  them.\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -73,6 +78,7 @@ int rs_use_ssl = 0;
 char *rs_ssl_cert_path = NULL;
 char *rs_ssl_key_path = NULL;
 char *rs_ssl_ca_path = NULL;
+int rs_use_xattr = 1;
 
 void (*current_log_debug)(const char *file, int line, char *format, ...) = NULL;
 
@@ -90,9 +96,10 @@ static struct option long_options[] = {
   { "auth-uri", required_argument, 0, 0 },
   { "experimental", no_argument, 0, 0 },
   { "ssl", no_argument, 0, 0 },
-  { "cert-path", required_argument, 0, 0, },
-  { "key-path", required_argument, 0, 0, },
-  { "ca-path", required_argument, 0, 0, },
+  { "cert-path", required_argument, 0, 0 },
+  { "key-path", required_argument, 0, 0 },
+  { "ca-path", required_argument, 0, 0 },
+  { "no-xattr", no_argument, 0, 0 },
   { 0, 0, 0, 0 }
 };
 
@@ -189,6 +196,8 @@ void init_config(int argc, char **argv) {
         rs_ssl_key_path = optarg;
       } else if(strcmp(arg_name, "ca-path") == 0) { // --ca-path
         rs_ssl_ca_path = optarg;
+      } else if(strcmp(arg_name, "no-xattr") == 0) { // --no-xattr
+        rs_use_xattr = 0;
       }
     }
   }

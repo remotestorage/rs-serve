@@ -56,6 +56,10 @@
 
 #include <attr/xattr.h>
 
+// libssl headers (for SHA1 computation)
+
+#include <openssl/sha.h>
+
 // rs-serve headers
 
 #include "version.h"
@@ -65,6 +69,7 @@
 #include "common/user.h"
 #include "common/auth.h"
 #include "common/json.h"
+#include "common/attributes.h"
 
 #include "handler/auth.h"
 #include "handler/dispatch.h"
