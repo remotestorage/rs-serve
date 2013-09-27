@@ -29,7 +29,6 @@ static evhtp_res serve_file_head(evhtp_request_t *request_t, char *disk_path,
 static evhtp_res serve_file(evhtp_request_t *request, const char *disk_path,
                       struct stat *stat_buf);
 static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body);
-static int compare_version(struct stat *stat_buf, const char *expected);
 
 evhtp_res storage_handle_head(evhtp_request_t *request) {
   if(RS_EXPERIMENTAL) {
@@ -73,7 +72,7 @@ evhtp_res storage_handle_put(evhtp_request_t *request) {
     // current version.
 
     evhtp_header_t *if_match = evhtp_headers_find_header(request->headers_in, "If-Match");
-    if(if_match && ((!exists) || compare_version(&stat_buf, if_match->val) != 0)) {
+    if(if_match && ((!exists) || strcmp(get_etag(disk_path), if_match->val) != 0)) {
       return 412;
     }
 
@@ -254,6 +253,12 @@ evhtp_res storage_handle_delete(evhtp_request_t *request) {
     }
 
     char *etag_string = get_etag(disk_path);
+
+    evhtp_header_t *if_match = evhtp_headers_find_header(request->headers_in, "If-Match");
+    if(if_match && (strcmp(etag_string, if_match->val) != 0)) {
+      return 412;
+    }
+
     ADD_RESP_HEADER_CP(request, "ETag", etag_string);
 
     // file exists, delete it.
@@ -564,10 +569,4 @@ static evhtp_res handle_get_or_head(evhtp_request_t *request, int include_body) 
       return EVHTP_RES_OK;
     }
   }
-}
-
-static int compare_version(struct stat *stat_buf, const char *expected) {
-  char version_string[32];
-  sprintf(version_string, "%lld", ((long long int) stat_buf->st_mtime) * 1000);
-  return strcmp(version_string, expected);
 }
