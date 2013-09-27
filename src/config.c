@@ -46,7 +46,7 @@ static void print_help(const char *progname) {
           "                                  They will be stored in a separate Berkeley Database\n"
           "                                  instead. Use this option if your filesystem does not\n"
           "                                  support extended attributes or you don't want to use\n"
-          "                                  them.\n"
+          "                                  them. (NOT IMPLEMENTED)\n"
           "\n"
           "This program is distributed in the hope that it will be useful,\n"
           "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"

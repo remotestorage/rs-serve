@@ -1,3 +1,7 @@
+2013-09-27
+  - Switched ETags to SHA1 sums. Caching them in filesystem's extended attributes.
+  - Directory ETags are based on all of the children's ETags.
+  - Passing current version of remotestorage conformance tests.
 
 2013-06-18 - Version 0.1
   Initial release
