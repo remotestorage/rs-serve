@@ -1,7 +1,10 @@
-rs-serve - A remoteStorage server implementation
-================================================
+rs-serve
+========
 
-Content:
+A remoteStorage server implementation for POSIX systems.
+
+Content
+-------
 
 1. Introduction
 2. Overview
