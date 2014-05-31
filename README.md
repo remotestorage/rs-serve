@@ -164,7 +164,7 @@ These steps should enable you to install rs-serve.
 
 On Debian based systems, this should give you all you need:
 
-    apt-get install build-essential cmake libevent-dev libmagic-dev libattr1-dev libssl-dev libdb-dev pkg-config
+    apt-get install build-essential cmake libevent-dev libmagic-dev libattr1-dev libssl-dev libdb-dev pkg-config git
 
 If you want to develop, you may also want debug symbols and valgrind (required by
 leakcheck.sh script):
