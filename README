@@ -266,7 +266,7 @@ To integrate an authorization endpoint, you need to do two things:
 ---------------
 
 * If you've found a bug, or have any questions, please open an issue on github:
-  https://github.com/remotestoage/rs-serve/issues
+  https://github.com/remotestorage/rs-serve/issues
 
 * If you want to contribute, fork the project on github and send pull requests.
 
