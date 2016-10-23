@@ -1,5 +1,5 @@
 CFLAGS=${shell pkg-config libevent_openssl --cflags} -ggdb -Wall --std=c99 $(INCLUDES)
-LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic -lattr -lpthread -ldb
+LDFLAGS=${shell pkg-config libevent_openssl --libs} ${shell pkg-config libssl --libs} -lmagic -lattr -lpthread -ldb -levhtp -ldb -lcrypto -lssl
 INCLUDES=-Isrc -Ilib/evhtp/ -Ilib/evhtp/htparse -Ilib/evhtp/evthr -Ilib/evhtp/oniguruma/
 
 TOOLS = tools/add-token tools/remove-token tools/list-tokens tools/lookup-token
@@ -12,9 +12,9 @@ PROCESS_OBJECTS=src/process/main.o
 OBJECTS=$(BASE_OBJECTS) $(COMMON_OBJECTS) $(PROCESS_OBJECTS) $(HANDLER_OBJECTS)
 HEADERS=src/rs-serve.h src/config.h src/common/auth.h src/common/json.h src/common/log.h src/common/user.h src/handler/auth.h src/handler/dispatch.h src/handler/storage.h src/handler/webfinger.h
 
-STATIC_LIBS=lib/evhtp/build/libevhtp.a
+#STATIC_LIBS=lib/evhtp/build/libevhtp.a
 
-SUBMODULES=lib/evhtp/
+#SUBMODULES=lib/evhtp/
 
 TESTS=test/unit/common/auth
 
@@ -24,7 +24,7 @@ all: rs-serve tools tests
 
 rs-serve: $(STATIC_LIBS) $(OBJECTS) $(HEADERS)
 	@echo "[LD] $@"
-	@$(CC) -o $@ $(OBJECTS) $(STATIC_LIBS) $(LDFLAGS)
+	@$(CC) -o $@ $(OBJECTS) $(STATIC_LIBS) $(LDFLAGS) 
 
 %.o: %.c
 	@echo "[CC] ${shell echo $@ | sed 's/src\///' | sed 's/\.o//'}"
@@ -89,7 +89,7 @@ tests: $(TESTS)
 
 test/unit/common/auth: test/unit/common/auth.o src/common/auth.o
 	@echo "[LD] test/unit/common/auth"
-	@$(CC) $< -o $@ $(LDFLAGS) src/common/auth.o
+	@$(CC) $< -o $@  src/common/auth.o $(LDFLAGS)
 	@echo "[TEST] common/auth"
 	@test/unit/common/auth
 
@@ -105,23 +105,23 @@ limit_check: all
 
 ## DEPENDENT LIBS
 
-lib/evhtp/build/libevhtp.a: lib/evhtp/
-	@echo "[DEPS] libevhtp"
-	@cd lib/evhtp/build && cmake .. && make
+#lib/evhtp/build/libevhtp.a: lib/evhtp/
+#	@echo "[DEPS] libevhtp"
+#	@cd lib/evhtp/build && cmake .. && make
 
 ## SUBMODULES
 
-submodules: $(SUBMODULES)
+#submodules: $(SUBMODULES)
 
-clean-submodules:
-	@echo "[CLEAN SUBMODULES]"
-	@rm -rf $(SUBMODULES)
+# #clean-submodules:
+# 	@echo "[CLEAN SUBMODULES]"
+# 	@rm -rf $(SUBMODULES)
 
-$(SUBMODULES):
-	@echo "[SUBMODULE] $@"
-	@git submodule update --init $@
+# $(SUBMODULES):
+# 	@echo "[SUBMODULE] $@"
+# 	@git submodule update --init $@
 
-.PHONY: submodules clean-submodules $(SUBMODULES)
+# .PHONY: submodules clean-submodules $(SUBMODULES)
 
 ## JAVASCRIPT BINDINGS
 
